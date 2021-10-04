@@ -6,8 +6,10 @@ from os.path import join as o_join
 from pathlib import Path
 
 import hdbscan
+import numpy as np
+import pacmap
 import pandas as pd
-import umap
+from annoy import AnnoyIndex
 from sklearn import svm
 from sklearn.cluster import MiniBatchKMeans
 from sklearn.ensemble import IsolationForest
@@ -160,42 +162,81 @@ def recruitOCSVM(p):
 def runClusterer(mg_id, clst_path, cov_file, tetra_file, minhash_dict,
                  nthreads
                  ):  # TODO: need to add multithreading where ever possible
-    # Convert CovM to UMAP feature table
-    set_init = 'spectral'
+    # Convert CovM to PACMAP feature table
     cov_emb = Path(o_join(clst_path, mg_id + '.denovo.covm_emb.tsv'))
     if not cov_emb.is_file():
-        print('Building UMAP embedding for Coverage...')
+        print('Building PACMAP embedding for Coverage...')
         cov_df = pd.read_csv(cov_file, header=0, sep='\t', index_col='contigName')
-        # COV sometimes crashes when init='spectral', so fall back on 'random' when that happens.
-        try:
-            clusterable_embedding = umap.UMAP(n_neighbors=10, min_dist=0.0,
-                                              n_components=len(cov_df.columns),
-                                              random_state=42, metric='manhattan', init=set_init
-                                              ).fit_transform(cov_df)
-        except:
-            print('Resetting UMAP initialization to random to avoid warning...')
-            tmp_init = 'random'
-            clusterable_embedding = umap.UMAP(n_neighbors=10, min_dist=0.0,
-                                              n_components=len(cov_df.columns),
-                                              random_state=42, metric='manhattan', init=tmp_init
-                                              ).fit_transform(
-                cov_df)  # TODO: Spectral works better for De novo, Random for Anchored.
-        umap_feat_df = pd.DataFrame(clusterable_embedding, index=cov_df.index.values)
-        umap_feat_df.reset_index(inplace=True)
-        umap_feat_df.rename(columns={'index': 'subcontig_id'}, inplace=True)
-        umap_feat_df.to_csv(cov_emb, sep='\t', index=False)
-    # Convert Tetra to UMAP feature table
+        X = cov_df.values
+        n, dim = X.shape
+        n_neighbors = 10
+        tree = AnnoyIndex(dim, metric='manhattan')
+        for i in range(n):
+            tree.add_item(i, X[i, :])
+        tree.build(20)
+        nbrs = np.zeros((n, 20), dtype=np.int32)
+        for i in range(n):
+            nbrs_ = tree.get_nns_by_item(i, 20 + 1)  # The first nbr is always the point itself
+            nbrs[i, :] = nbrs_[1:]
+        scaled_dist = np.ones((n, n_neighbors))  # No scaling is needed
+        # Type casting is needed for numba acceleration
+        X = X.astype(np.float32)
+        scaled_dist = scaled_dist.astype(np.float32)
+        # make sure n_neighbors is the same number you want when fitting the data
+        pair_neighbors = pacmap.sample_neighbors_pair(X, scaled_dist, nbrs,
+                                                      np.int32(n_neighbors)
+                                                      )
+        # initializing the pacmap instance
+        # feed the pair_neighbors into the instance
+        embedding = pacmap.PaCMAP(n_dims=len(cov_df.columns),
+                                  n_neighbors=n_neighbors,
+                                  MN_ratio=0.5,
+                                  FP_ratio=6.0,
+                                  pair_neighbors=pair_neighbors
+                                  )
+        clusterable_embedding = embedding.fit_transform(X, init="pca")
+
+        feat_df = pd.DataFrame(clusterable_embedding, index=cov_df.index.values)
+        feat_df.reset_index(inplace=True)
+        feat_df.rename(columns={'index': 'subcontig_id'}, inplace=True)
+        feat_df.to_csv(cov_emb, sep='\t', index=False)
+    # Convert Tetra to PACMAP feature table
     tetra_emb = Path(o_join(clst_path, mg_id + '.denovo.tetra_emb.tsv'))
     if not tetra_emb.is_file():
-        print('Building UMAP embedding for Tetra Hz...')
+        print('Building PACMAP embedding for Tetra Hz...')
         tetra_df = pd.read_csv(tetra_file, header=0, sep='\t', index_col='contig_id')
-        clusterable_embedding = umap.UMAP(n_neighbors=10, min_dist=0.0, n_components=40,
-                                          random_state=42, metric='manhattan', init=set_init
-                                          ).fit_transform(tetra_df)
-        umap_feat_df = pd.DataFrame(clusterable_embedding, index=tetra_df.index.values)
-        umap_feat_df.reset_index(inplace=True)
-        umap_feat_df.rename(columns={'index': 'subcontig_id'}, inplace=True)
-        umap_feat_df.to_csv(tetra_emb, sep='\t', index=False)
+        X = tetra_df.values
+        n, dim = X.shape
+        n_neighbors = 10
+        tree = AnnoyIndex(dim, metric='manhattan')
+        for i in range(n):
+            tree.add_item(i, X[i, :])
+        tree.build(20)
+        nbrs = np.zeros((n, 20), dtype=np.int32)
+        for i in range(n):
+            nbrs_ = tree.get_nns_by_item(i, 20 + 1)  # The first nbr is always the point itself
+            nbrs[i, :] = nbrs_[1:]
+        scaled_dist = np.ones((n, n_neighbors))  # No scaling is needed
+        # Type casting is needed for numba acceleration
+        X = X.astype(np.float32)
+        scaled_dist = scaled_dist.astype(np.float32)
+        # make sure n_neighbors is the same number you want when fitting the data
+        pair_neighbors = pacmap.sample_neighbors_pair(X, scaled_dist, nbrs,
+                                                      np.int32(n_neighbors)
+                                                      )
+        # initializing the pacmap instance
+        # feed the pair_neighbors into the instance
+        embedding = pacmap.PaCMAP(n_dims=40,
+                                  n_neighbors=n_neighbors,
+                                  MN_ratio=0.5,
+                                  FP_ratio=6.0,
+                                  pair_neighbors=pair_neighbors
+                                  )
+        clusterable_embedding = embedding.fit_transform(X, init="pca")
+        feat_df = pd.DataFrame(clusterable_embedding, index=tetra_df.index.values)
+        feat_df.reset_index(inplace=True)
+        feat_df.rename(columns={'index': 'subcontig_id'}, inplace=True)
+        feat_df.to_csv(tetra_emb, sep='\t', index=False)
     # Merge Coverage and Tetra Embeddings
     merged_emb = Path(o_join(clst_path, mg_id + '.denovo.merged_emb.tsv'))
     if not merged_emb.is_file():
@@ -271,34 +312,8 @@ def runClusterer(mg_id, clst_path, cov_file, tetra_file, minhash_dict,
     trust_out_file = Path(o_join(clst_path, mg_id + '.trusted_clusters.tsv'))
     if minhash_dict and not trust_out_file.is_file():
         print('Anchored Binning Starting with Trusted Contigs...')
-        # Convert CovM to UMAP feature table
-        set_init = 'random'
-        cov_emb = Path(o_join(clst_path, mg_id + '.anchored.covm_emb.tsv'))
-        if not cov_emb.is_file():
-            print('Building UMAP embedding for Coverage...')
-            cov_df = pd.read_csv(cov_file, header=0, sep='\t', index_col='contigName')
-            clusterable_embedding = umap.UMAP(n_neighbors=10, min_dist=0.0,
-                                              n_components=len(cov_df.columns),
-                                              random_state=42, metric='manhattan', init=set_init
-                                              ).fit_transform(cov_df)
-            umap_feat_df = pd.DataFrame(clusterable_embedding, index=cov_df.index.values)
-            umap_feat_df.reset_index(inplace=True)
-            umap_feat_df.rename(columns={'index': 'subcontig_id'}, inplace=True)
-            umap_feat_df.to_csv(cov_emb, sep='\t', index=False)
-        # Convert Tetra to UMAP feature table
-        tetra_emb = Path(o_join(clst_path, mg_id + '.anchored.tetra_emb.tsv'))
-        if not tetra_emb.is_file():
-            print('Building UMAP embedding for Tetra Hz...')
-            tetra_df = pd.read_csv(tetra_file, header=0, sep='\t', index_col='contig_id')
-            clusterable_embedding = umap.UMAP(n_neighbors=10, min_dist=0.0, n_components=40,
-                                              random_state=42, metric='manhattan', init=set_init
-                                              ).fit_transform(tetra_df)
-            umap_feat_df = pd.DataFrame(clusterable_embedding, index=tetra_df.index.values)
-            umap_feat_df.reset_index(inplace=True)
-            umap_feat_df.rename(columns={'index': 'subcontig_id'}, inplace=True)
-            umap_feat_df.to_csv(tetra_emb, sep='\t', index=False)
         # Merge Coverage and Tetra Embeddings
-        anchor_emb = Path(o_join(clst_path, mg_id + '.anchored.merged_emb.tsv'))
+        anchor_emb = Path(o_join(clst_path, mg_id + '.denovo.merged_emb.tsv'))
         if not anchor_emb.is_file():
             print('Merging Tetra and Coverage Embeddings...')
             tetra_feat_df = pd.read_csv(tetra_emb, sep='\t', header=0, index_col='subcontig_id')
