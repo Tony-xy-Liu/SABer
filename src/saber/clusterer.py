@@ -169,31 +169,38 @@ def runClusterer(mg_id, clst_path, cov_file, tetra_file, minhash_dict,
         cov_df = pd.read_csv(cov_file, header=0, sep='\t', index_col='contigName')
         X = cov_df.values
         n, dim = X.shape
-        n_neighbors = 10
+        n_neighbors = int(10 + 15 * (np.log10(n) - 4))
         tree = AnnoyIndex(dim, metric='manhattan')
-        for i in range(n):
+        print('Building tree...')
+        for i in tqdm(range(n)):
             tree.add_item(i, X[i, :])
         tree.build(20)
         nbrs = np.zeros((n, 20), dtype=np.int32)
-        for i in range(n):
+        print('Compiling neighbors list...')
+        for i in tqdm(range(n)):
             nbrs_ = tree.get_nns_by_item(i, 20 + 1)  # The first nbr is always the point itself
             nbrs[i, :] = nbrs_[1:]
         scaled_dist = np.ones((n, n_neighbors))  # No scaling is needed
         # Type casting is needed for numba acceleration
         X = X.astype(np.float32)
+        print('Scaling distances...')
         scaled_dist = scaled_dist.astype(np.float32)
         # make sure n_neighbors is the same number you want when fitting the data
+        print('Pairing neighbors...')
         pair_neighbors = pacmap.sample_neighbors_pair(X, scaled_dist, nbrs,
                                                       np.int32(n_neighbors)
                                                       )
         # initializing the pacmap instance
         # feed the pair_neighbors into the instance
+        print('Initializing embedding...')
         embedding = pacmap.PaCMAP(n_dims=len(cov_df.columns),
                                   n_neighbors=n_neighbors,
-                                  MN_ratio=0.5,
+                                  MN_ratio=0.1,
                                   FP_ratio=6.0,
-                                  pair_neighbors=pair_neighbors
+                                  pair_neighbors=pair_neighbors,
+                                  verbose=True
                                   )
+        print('Transforming data...')
         clusterable_embedding = embedding.fit_transform(X, init="pca")
 
         feat_df = pd.DataFrame(clusterable_embedding, index=cov_df.index.values)
@@ -207,31 +214,38 @@ def runClusterer(mg_id, clst_path, cov_file, tetra_file, minhash_dict,
         tetra_df = pd.read_csv(tetra_file, header=0, sep='\t', index_col='contig_id')
         X = tetra_df.values
         n, dim = X.shape
-        n_neighbors = 10
+        n_neighbors = int(10 + 15 * (np.log10(n) - 4))
         tree = AnnoyIndex(dim, metric='manhattan')
-        for i in range(n):
+        print('Building tree...')
+        for i in tqdm(range(n)):
             tree.add_item(i, X[i, :])
         tree.build(20)
         nbrs = np.zeros((n, 20), dtype=np.int32)
-        for i in range(n):
+        print('Compiling neighbors list...')
+        for i in tqdm(range(n)):
             nbrs_ = tree.get_nns_by_item(i, 20 + 1)  # The first nbr is always the point itself
             nbrs[i, :] = nbrs_[1:]
+        print('Scaling distances...')
         scaled_dist = np.ones((n, n_neighbors))  # No scaling is needed
         # Type casting is needed for numba acceleration
         X = X.astype(np.float32)
         scaled_dist = scaled_dist.astype(np.float32)
         # make sure n_neighbors is the same number you want when fitting the data
+        print('Pairing neighbors...')
         pair_neighbors = pacmap.sample_neighbors_pair(X, scaled_dist, nbrs,
                                                       np.int32(n_neighbors)
                                                       )
         # initializing the pacmap instance
         # feed the pair_neighbors into the instance
+        print('Initializing embedding...')
         embedding = pacmap.PaCMAP(n_dims=40,
                                   n_neighbors=n_neighbors,
-                                  MN_ratio=0.5,
+                                  MN_ratio=0.1,
                                   FP_ratio=6.0,
-                                  pair_neighbors=pair_neighbors
+                                  pair_neighbors=pair_neighbors,
+                                  verbose=True
                                   )
+        print('Transforming data...')
         clusterable_embedding = embedding.fit_transform(X, init="pca")
         feat_df = pd.DataFrame(clusterable_embedding, index=tetra_df.index.values)
         feat_df.reset_index(inplace=True)
