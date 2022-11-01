@@ -433,7 +433,7 @@ cat_cnt_df['binner'] = [x.split('_', 2)[0] + '_' + x.split('_', 2)[1]
                         for x in cat_cnt_df['binner_config']
                         ]
 
-filter_list = ['SABer_hdbscan', 'SABer_ocsvm', 'SABer_intersect']
+filter_list = ['SABer_denovo', 'SABer_hdbscan', 'SABer_ocsvm', 'SABer_intersect']
 filter_cnt_df = cat_cnt_df.query("binner not in @filter_list")
 dedup_cnt_df = filter_cnt_df.drop_duplicates(subset=['binner', 'level_mode'])
 dedup_cnt_df['binner_config_level_mode'] = [x + '_' + y for x, y
@@ -446,8 +446,6 @@ dedup_cnt_df.to_csv(os.path.join(workdir, 'tables/ALL_BINNERS.NC.uniq_sample.cou
 
 # Calculate the Recall diff between SAGs and xPGs
 bclm_list = list(dedup_cnt_df['binner_config_level_mode'].unique())
-print(bclm_list)
-flurp
 bin_cat_df['binner_config_level_mode'] = [x + '_' + y for x, y
                                           in zip(bin_cat_df['binner_config'],
                                                  bin_cat_df['level_mode']
@@ -674,8 +672,7 @@ sum_binstat_df = sub_binstat_df.groupby(['binner', 'bin_rank',
                                         )['ext_nc_uniq'].sum().reset_index()
 sum_binstat_df.sort_values(by=['level_rank', 'bin_rank', 'type_rank'],
                            inplace=True)
-print(sum_binstat_df)
-flurp
+
 barie = sns.catplot(x="dataset", y="ext_nc_uniq", hue="binner",
                     col="level_mode", col_wrap=2,
                     kind="bar", data=sum_binstat_df,
@@ -774,7 +771,7 @@ cat_cnt_df['binner'] = [x.split('_', 2)[0] + '_' + x.split('_', 2)[1]
                         if 'SABer' in x else x.split('_', 1)[0]
                         for x in cat_cnt_df['binner_config']
                         ]
-filter_list = ['SABer_hdbscan', 'SABer_ocsvm', 'SABer_intersect']
+filter_list = ['SABer_denovo', 'SABer_hdbscan', 'SABer_ocsvm', 'SABer_intersect']
 filter_cnt_df = cat_cnt_df.query("binner not in @filter_list")
 dedup_cnt_df = filter_cnt_df.drop_duplicates(subset=['binner', 'level_mode'])
 dedup_cnt_df.to_csv(os.path.join(workdir, 'tables/ALL_BINNERS.MQ.uniq_sample.counts.tsv'),
