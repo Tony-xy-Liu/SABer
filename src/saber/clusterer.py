@@ -8,6 +8,7 @@ from pathlib import Path
 
 import hdbscan
 import pandas as pd
+import numpy as np
 import umap
 from sklearn import svm
 from sklearn.cluster import MiniBatchKMeans
@@ -119,6 +120,22 @@ def runClusterer(mg_id, tmp_path, clst_path, cov_file, tetra_file, minhash_dict,
     set_init = 'spectral'
     merged_emb = Path(o_join(tmp_path, mg_id + '.merged_emb.tsv'))
     if not merged_emb.is_file():
+
+        print('Merging Coverage and Tetra Hz features...')
+        cov_df = pd.read_csv(cov_file, header=0, sep='\t', index_col='subcontig_id')
+        tetra_df = pd.read_csv(tetra_file, header=0, sep='\t', index_col='contig_id')
+        cov_df.columns = [str(x) + '_cov' for x in cov_df.columns]
+        tetra_df.columns = [str(x) + '_tetra' for x in tetra_df.columns]
+        merge_df = cov_df.merge(tetra_df, left_index=True, right_index=True, how='left')
+
+        print('Building embedding with UMAP...')
+        clusterable_embedding = umap.UMAP(metric='manhattan', random_state=42).fit_transform(merge_df)
+        umap_feat_df = pd.DataFrame(clusterable_embedding, index=merge_df.index.values)
+        umap_feat_df.reset_index(inplace=True)
+        umap_feat_df.rename(columns={'index': 'subcontig_id'}, inplace=True)
+        umap_feat_df.to_csv(merged_emb, sep='\t', index=False)
+
+        '''
         cov_emb = Path(o_join(tmp_path, mg_id + '.covm_emb.tsv'))
         print('Building embedding for Coverage...')
         cov_df = pd.read_csv(cov_file, header=0, sep='\t', index_col='subcontig_id')
@@ -126,6 +143,7 @@ def runClusterer(mg_id, tmp_path, clst_path, cov_file, tetra_file, minhash_dict,
         #mh_contig_list = list(mh_trusted_df['contig_id'].unique())
         mh_cov_df = cov_df.copy() #.query('contig_id == @mh_contig_list')
         del mh_cov_df['contig_id']
+
         n_neighbors = 20
         # COV sometimes crashes when init='spectral', trying higher NN value for 2-stage DR
         try:
@@ -234,6 +252,8 @@ def runClusterer(mg_id, tmp_path, clst_path, cov_file, tetra_file, minhash_dict,
         tetra_feat_df.drop(columns=['contig_id_tetra'], inplace=True)
         cov_feat_df.drop(columns=['contig_id_cov'], inplace=True)
         merge_df.to_csv(merged_emb, sep='\t')
+        '''
+
 
     denovo_out_file = Path(o_join(clst_path, mg_id + '.denovo_hdbscan.tsv'))
     if not denovo_out_file.is_file():
@@ -261,11 +281,63 @@ def runClusterer(mg_id, tmp_path, clst_path, cov_file, tetra_file, minhash_dict,
     noise_out_file = Path(o_join(clst_path, mg_id + '.denovo_noise.tsv'))
     if not denovo_out_file.is_file():
         print('Denoising Clusters...')
-        pool = multiprocessing.Pool(processes=nthreads)
+        #pool = multiprocessing.Pool(processes=nthreads)
         arg_list = []
+        linked_labels = []
+        best_label_list = []
         for contig in tqdm(list(cluster_df['contig_id'].unique())):
             sub_df = cluster_df.query('contig_id == @contig')
             arg_list.append([sub_df, contig])
+            _, best_label, link_label = denoise_clust([sub_df, contig])
+            best_label_list.append([contig, best_label])
+            if not np.isnan(link_label):
+                linked_labels.append([best_label, link_label])
+        best_label_df = pd.DataFrame(best_label_list, columns=['contig_id', 'best_label'])
+        ########################################################################################
+        # REFACTOR 
+        ########################################################################################
+        import networkx 
+        from networkx.algorithms.components.connected import connected_components
+
+        def to_graph(l):
+            G = networkx.Graph()
+            for part in l:
+                # each sublist is a bunch of nodes
+                G.add_nodes_from(part)
+                # it also imlies a number of edges:
+                G.add_edges_from(to_edges(part))
+            return G
+
+        def to_edges(l):
+            """ 
+                treat `l` as a Graph and returns it's edges 
+                to_edges(['a','b','c','d']) -> [(a,b), (b,c),(c,d)]
+            """
+            it = iter(l)
+            last = next(it)
+
+            for current in it:
+                yield last, current
+                last = current 
+
+        G = to_graph(linked_labels)
+        
+        linked_label_list = [list(x) for x in list(connected_components(G))]
+        linked_label_dict = {}
+        for link_clust in linked_label_list:
+            label_min = min(link_clust)
+            for lab in link_clust:
+                linked_label_dict[lab] = label_min
+        best_label_df['best_label'] = [linked_label_dict[l] if l in
+                                       linked_label_dict else l for l
+                                       in best_label_df['best_label']
+                                       ]
+
+        ########################################################################################
+        # END
+        ########################################################################################
+
+        '''
         ns_ratio_list = []
         results = pool.imap_unordered(denoise_clust, arg_list)
         for i, output in tqdm(enumerate(results, 1)):
@@ -276,6 +348,13 @@ def runClusterer(mg_id, tmp_path, clst_path, cov_file, tetra_file, minhash_dict,
         cluster_ns_df = cluster_df.merge(ns_ratio_df, on='contig_id', how='left')
         denovo_clusters_df = cluster_ns_df.query('best_label != -1')  # 'best_prob >= 0.51')
         noise_df = cluster_ns_df.query('best_label == -1')  # 'best_prob < 0.51')
+        '''
+        cluster_bl_df = cluster_df.merge(best_label_df, on='contig_id', how='left')
+        cluster_bl_df['best_label'] = cluster_bl_df['best_label'].fillna(-1)
+        cluster_bl_df['best_label'] = [int(x) for x in cluster_bl_df['best_label']]
+        denovo_clusters_df = cluster_bl_df.query('best_label != -1')
+        noise_df = cluster_bl_df.query('best_label == -1')
+
         if denovo_clusters_df.empty:
             #  TODO: fix this or print a warning message to user :)
             denovo_clusters_df = noise_df.copy()
@@ -318,6 +397,67 @@ def runClusterer(mg_id, tmp_path, clst_path, cov_file, tetra_file, minhash_dict,
         noise_out_file = Path(o_join(clst_path, mg_id + '.hdbscan_noise.tsv'))
         if not hdbscan_out_file.is_file():
             print('Denoising Clusters...')
+            linked_labels = []
+            best_label_list = []
+            arg_list = []
+            for contig in tqdm(list(cluster_df['contig_id'].unique())):
+                sub_df = cluster_df.query('contig_id == @contig')
+                arg_list.append([sub_df, contig])
+                _, best_label, link_label = denoise_clust([sub_df, contig])
+                best_label_list.append([contig, best_label])
+                if not np.isnan(link_label):
+                    linked_labels.append([best_label, link_label])
+            best_label_df = pd.DataFrame(best_label_list, columns=['contig_id', 'best_label'])
+            ########################################################################################
+            # REFACTOR 
+            ########################################################################################
+            import networkx 
+            from networkx.algorithms.components.connected import connected_components
+
+            def to_graph(l):
+                G = networkx.Graph()
+                for part in l:
+                    # each sublist is a bunch of nodes
+                    G.add_nodes_from(part)
+                    # it also imlies a number of edges:
+                    G.add_edges_from(to_edges(part))
+                return G
+
+            def to_edges(l):
+                """ 
+                    treat `l` as a Graph and returns it's edges 
+                    to_edges(['a','b','c','d']) -> [(a,b), (b,c),(c,d)]
+                """
+                it = iter(l)
+                last = next(it)
+
+                for current in it:
+                    yield last, current
+                    last = current 
+
+            G = to_graph(linked_labels)
+            
+            linked_label_list = [list(x) for x in list(connected_components(G))]
+            linked_label_dict = {}
+            for link_clust in linked_label_list:
+                label_min = min(link_clust)
+                for lab in link_clust:
+                    linked_label_dict[lab] = label_min
+            best_label_df['best_label'] = [linked_label_dict[l] if l in
+                                           linked_label_dict else l for l
+                                           in best_label_df['best_label']
+                                           ]
+
+            ########################################################################################
+            # END
+            ########################################################################################
+            cluster_bl_df = cluster_df.merge(best_label_df, on='contig_id', how='left')
+            cluster_bl_df['best_label'] = cluster_bl_df['best_label'].fillna(-1)
+            cluster_bl_df['best_label'] = [int(x) for x in cluster_bl_df['best_label']]
+            no_noise_df = cluster_bl_df.query('best_label != -1')
+            noise_df = cluster_bl_df.query('best_label == -1')
+
+            '''
             pool = multiprocessing.Pool(processes=nthreads)
             arg_list = []
             for contig in tqdm(list(cluster_df['contig_id'].unique())):
@@ -333,6 +473,7 @@ def runClusterer(mg_id, tmp_path, clst_path, cov_file, tetra_file, minhash_dict,
             cluster_ns_df = cluster_df.merge(ns_ratio_df, on='contig_id', how='left')
             no_noise_df = cluster_ns_df.query('best_label != -1')  # 'best_prob >= 0.51')
             noise_df = cluster_ns_df.query('best_label == -1')  # 'best_prob < 0.51')
+            '''
             #if no_noise_df.empty:
             #    #  TODO: fix this or print a warning message to user :)
             #    no_noise_df = noise_df.copy()
@@ -565,17 +706,37 @@ def trust_clust(p):
 def denoise_clust(p):
     sub_df, contig = p
     noise_cnt = sub_df.query('label == -1').shape[0]
-    signal_cnt = sub_df.query('label != -1').shape[0]
-    ns_ratio = (noise_cnt / (noise_cnt + signal_cnt)) * 100
-    #if ns_ratio < 51:
+    signal_df = sub_df.query('label != -1 & probabilities >= 0.95 & outlier_score <= 0.05')
+    signal_cnt = signal_df.shape[0]
+    
     if signal_cnt != 0:
-        prob_df = sub_df.groupby(['label'])[['probabilities']].max().reset_index()
-        best_ind = prob_df['probabilities'].argmax()
-        best_label = prob_df['label'].iloc[best_ind]
-        best_prob = prob_df['probabilities'].iloc[best_ind]
+        ns_ratio = (noise_cnt / (noise_cnt + signal_cnt)) * 100
+        if ns_ratio < 51:
+            #prob_df = sub_df.groupby(['label'])[['probabilities']].max().reset_index()
+            #best_ind = prob_df['probabilities'].argmax()
+            #best_label = prob_df['label'].iloc[best_ind]
+            #best_prob = prob_df['probabilities'].iloc[best_ind]
+            cnt_label = signal_df.groupby('label')['probabilities'].count().reset_index() # TODO: what about ties?
+            cnt_label['percent'] = [x/cnt_label['probabilities'].sum() for x in cnt_label['probabilities']]
+            sort_df = cnt_label.sort_values(by=['percent'], ascending=False).reset_index()
+            sort_df.columns = ['old_index', 'label', 'count', 'percent']
+            best_label = sort_df['label'].iloc[0]
+            if sort_df.shape[0] > 1:
+                next_label = sort_df['label'].iloc[1]
+                next_per = sort_df['percent'].iloc[1]
+                if next_per >= 0.49:
+                    link_label = next_label
+                else:
+                    link_label = np.nan
+            else:
+                link_label = np.nan
+        else:
+            best_label = -1
+            link_label = np.nan
     else:
         best_label = -1
-    return ([contig, best_label])
+        link_label = np.nan
+    return ([contig, best_label, link_label])
 
 
 def match_contigs(p):
