@@ -166,7 +166,8 @@ rule run_gtdbtk:
 		fasta_dir = subset_genome_dir,
 		sub_log = os.path.join(logs, "subset_genomes.log")
 	output: 
-		out_log = os.path.join(logs, "gtdbtk.log")
+		out_log = os.path.join(logs, "gtdbtk.log"),
+		gtdbtk_log = os.path.join(working_dir, "gtdbtk/classify_out/gtdbtk.log")
 	threads:
 		nthreads
 	conda:
@@ -179,7 +180,7 @@ rule run_gtdbtk:
 		gtdbtk align --identify_dir {working_dir}/gtdbtk/identify_out --out_dir {working_dir}/gtdbtk/align_out/ --cpus {threads}
 
 		gtdbtk classify --genome_dir {input.fasta_dir} -x fasta --align_dir {working_dir}/gtdbtk/align_out/ --out_dir {working_dir}/gtdbtk/classify_out/ --cpus {threads} --pplacer_cpus {threads}
-		echo "Done."  > {output.out_log}
+		echo "Done." > {output.out_log}
 		"""
 
 rule run_barrnap:
@@ -295,6 +296,9 @@ rule run_trnscan:
 
 		for g in $(cat {input.dedupe_table} | grep 'Archaea' | cut -f2 | grep -v 'Bin Id'); do echo $g; tRNAscan-SE -A -o {working_dir}/trnascan/$g.output.txt -m {working_dir}/trnascan/$g.stats.txt -b {working_dir}/trnascan/$g.bed -j {working_dir}/trnascan/$g.gff -a {working_dir}/trnascan/$g.trna.fasta -l {working_dir}/trnascan/$g.log --thread {threads} {input.fasta_dir}/$g.fasta; done;
 		echo "Archaea Done."  >> {output.out_log}
+		
+		python ./trnascan_parse.py {working_dir}/trnascan/
+		echo "Output Parsing Done."  >> {output.out_log}
 		"""
 		
 rule run_gunc:

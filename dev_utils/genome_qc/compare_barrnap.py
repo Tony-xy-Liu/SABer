@@ -11,10 +11,10 @@ barnap_dir = sys.argv[1]
 data_list = []
 empty_list = []
 bar_check = [os.path.basename(x).rsplit('.', 2)[0] for x in
-				glob.glob(barnap_dir + "*.rRNA.fasta")
+				glob.glob(os.path.join(barnap_dir, "*.rRNA.fasta"))
 				]
 blast_dict = {os.path.basename(x).rsplit('.', 1)[0]: x for x in 
-				glob.glob(barnap_dir + "*.blastout")
+				glob.glob(os.path.join(barnap_dir, "*.blastout"))
 				}
 for bar_id in bar_check:
 	print(bar_id)
@@ -67,6 +67,30 @@ print(cat_df.head())
 
 cat_df.to_csv(os.path.join(barnap_dir, 'barrnap_blast_pass.tsv'), sep='\t', index=False)
 
+bar_gffs = [x for x in glob.glob(os.path.join(barnap_dir, "*.rRNA.gff"))]
+gff_list = []
+for gff in bar_gffs:
+	try:
+		gff_df = pd.read_csv(gff, sep='\t', header=None, comment='#')
+		gff_df.columns = ['seqid', 'source', 'type', 'start', 'end',
+						  'score', 'strand', 'phase', 'attributes'
+						  ]
+		gff_df['genome_id'] = os.path.basename(gff).split('.rRNA.')[0]
+		gff_df['name'] = [x.split(';', 1)[0].split('=')[1] for x in gff_df['attributes']]
+		gff_df['product'] = [x.split(';', 2)[1].split('=')[1] for x in gff_df['attributes']]
+		gff_df['prod_mod'] = [int(x.split(';', 3)[2].split(
+							  'aligned only ')[1].split(' percent of')[0])/100
+							  if ';note' in x else 1.0 for x in gff_df['attributes']
+							  ]
+		gff_list.append(gff_df)
+	except:
+		print(gff, 'is likely empty...')
+gff_cat_df = pd.concat(gff_list)
+gff_cat_df.to_csv(os.path.join(barnap_dir, 'barrnap_gff_table.tsv'), sep='\t', index=False)
+
+gff_grp_df = gff_cat_df.groupby(['genome_id', 'name'])['prod_mod'].sum().reset_index()
+gff_grp_df.rename(columns = {"prod_mod": "subunit_count"}, inplace = True)
+gff_grp_df.to_csv(os.path.join(barnap_dir, 'barrnap_subunit_counts.tsv'), sep='\t', index=False)
 
 
 

@@ -442,6 +442,7 @@ dedup_cnt_df.to_csv(os.path.join(workdir, 'stats/ALL_BINNERS.NC.uniq_sample.coun
 # Calculate the Recall diff between SAGs and xPGs
 bclm_list = list(dedup_cnt_df['binner_config_level_mode'].unique())
 print(bclm_list)
+
 bin_cat_df['binner_config_level_mode'] = [x + '_' + y for x, y
                                           in zip(bin_cat_df['binner_config'],
                                                  bin_cat_df['level_mode']
@@ -555,8 +556,13 @@ boxie = sns.catplot(x="dataset", y="recall", hue="data_type",
 boxie.savefig(os.path.join(workdir, 'plots/SABer.SAG_xPG.NC.catplot.pdf'),
               dpi=300
               )
+boxie.savefig(os.path.join(workdir, 'plots/SABer.SAG_xPG.NC.catplot.png'),
+              dpi=300
+              )
 plt.clf()
 plt.close()
+
+flurp
 
 keep_level = ['strain_assembly', 'strain_absolute']
 temp_cat_df = sample_metrics_df.copy().query("level in @keep_level")
