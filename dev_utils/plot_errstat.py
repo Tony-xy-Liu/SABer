@@ -7,9 +7,7 @@ import pandas as pd
 import scipy.stats as sci_stats
 import seaborn as sns
 from statsmodels.stats.multicomp import pairwise_tukeyhsd
-
-# specify that all columns should be shown
-pd.set_option('max_columns', None)
+from tqdm import tqdm
 
 # plot aestetics
 sns.set_context("paper")
@@ -127,12 +125,12 @@ diffdna_single_df['sample_id'] = ['S' + str(x) for x in
 diffdna_multi_df['sample_id'] = ['S' + str(x) for x in
                                  diffdna_multi_df['sample_id']
                                  ]
-diffdna_single_df['ref_id'] = [x.rsplit('.', 1)[0] for x in
-                                diffdna_single_df['ref_id']
-                                ]
-diffdna_multi_df['ref_id'] = [x.rsplit('.', 1)[0] for x in
-                                diffdna_multi_df['ref_id']
-                                ]
+#diffdna_single_df['ref_id'] = [x.rsplit('.', 1)[0] for x in
+#                                diffdna_single_df['ref_id']
+#                                ]
+#diffdna_multi_df['ref_id'] = [x.rsplit('.', 1)[0] for x in
+#                                diffdna_multi_df['ref_id']
+#                                ]
 
 saber_single_df['binner'] = ['_'.join(['SABer', str(x), str(y), str(z)])
                              for x, y, z in
@@ -192,13 +190,14 @@ bin_cat_df['level_mode'] = [x + '_' + y for x, y in zip(bin_cat_df['level'],
                                                         bin_cat_df['bin_mode']
                                                         )]
 bin_cat_df['dataset'] = [type2label[x] for x in bin_cat_df['sample_type']]
+
 ########################################################################################################################
 ##### Calc all basic metrics ###########################################################################################
 ########################################################################################################################
 '''
 # By dataset
 cat_list = []
-for binner in bin_cat_df['binner'].unique():
+for binner in tqdm(bin_cat_df['binner'].unique()):
     binner_df = bin_cat_df.query('binner == @binner')
     for bin_mode in binner_df['bin_mode'].unique():
         bin_mode_df = binner_df.query('bin_mode == @bin_mode')
@@ -207,7 +206,7 @@ for binner in bin_cat_df['binner'].unique():
             for level in dataset_df['level'].unique():
                 sub_err_df = dataset_df.query('level == @level')
                 if sub_err_df.shape[0] != 0:
-                    print(binner, bin_mode, dataset, level, sub_err_df.shape)
+                    #print(binner, bin_mode, dataset, level, sub_err_df.shape)
                     sub_err_df.sort_values(['precision', 'sensitivity'],
                                            ascending=[False, False], inplace=True
                                            )
@@ -266,11 +265,22 @@ cat_cols = ['binner', 'bin_mode', 'level', 'dataset', 'mq_avg_p', 'mq_avg_r',
             'ext_nc_poss', 'str_mq_poss', 'str_nc_poss'
             ]
 dataset_metrics_df = pd.DataFrame(cat_list, columns=cat_cols)
+dataset_metrics_df['level_mode'] = [x + '_' + y for x, y in zip(dataset_metrics_df['level'],
+                                                                dataset_metrics_df['bin_mode']
+                                                                )]
+dataset_metrics_df['level_mode_dataset'] = [x + '_' + y + '_' + z for x,y,z in
+                                            zip(dataset_metrics_df['level'],
+                                                dataset_metrics_df['bin_mode'],
+                                                dataset_metrics_df['dataset']
+                                                )]
+dataset_metrics_df['binner_config'] = [x + '_' + y for x, y in zip(dataset_metrics_df['binner'],
+                                                                   dataset_metrics_df['bin_mode']
+                                                                   )]
 dataset_metrics_df.to_csv(os.path.join(workdir, 'tables/ALL_BINNERS.dataset.avg_metrics.tsv'), sep='\t', index=False)
 
 # By sample
 cat_list = []
-for binner in bin_cat_df['binner'].unique():
+for binner in tqdm(bin_cat_df['binner'].unique()):
     binner_df = bin_cat_df.query('binner == @binner')
     for bin_mode in binner_df['bin_mode'].unique():
         bin_mode_df = binner_df.query('bin_mode == @bin_mode')
@@ -284,7 +294,7 @@ for binner in bin_cat_df['binner'].unique():
                                                 'sample_id == @sample_id'
                                                 )
                     if sub_err_df.shape[0] != 0:
-                        print(binner, bin_mode, dataset, level, sample_id, sub_err_df.shape)
+                        #print(binner, bin_mode, dataset, level, sample_id, sub_err_df.shape)
                         sub_err_df.sort_values(['precision', 'sensitivity'],
                                                ascending=[False, False], inplace=True
                                                )
@@ -343,27 +353,23 @@ cat_cols = ['binner', 'bin_mode', 'level', 'dataset', 'sample_id', 'mq_avg_p', '
             'ext_nc_poss', 'str_mq_poss', 'str_nc_poss'
             ]
 sample_metrics_df = pd.DataFrame(cat_list, columns=cat_cols)
+sample_metrics_df['level_mode'] = [x + '_' + y for x, y in zip(sample_metrics_df['level'],
+                                                               sample_metrics_df['bin_mode']
+                                                               )]
+sample_metrics_df['level_mode_dataset'] = [x + '_' + y + '_' + z for x,y,z in
+                                            zip(sample_metrics_df['level'],
+                                                sample_metrics_df['bin_mode'],
+                                                sample_metrics_df['dataset']
+                                                )]
+sample_metrics_df['binner_config'] = [x + '_' + y for x, y in zip(sample_metrics_df['binner'],
+                                                                  sample_metrics_df['bin_mode']
+                                                                  )]
 sample_metrics_df.to_csv(os.path.join(workdir, 'tables/ALL_BINNERS.sample.avg_metrics.tsv'), sep='\t', index=False)
 '''
 dataset_metrics_df = pd.read_csv(os.path.join(workdir, 'tables/ALL_BINNERS.dataset.avg_metrics.tsv'), sep='\t',
                                  header=0)
-
 sample_metrics_df = pd.read_csv(os.path.join(workdir, 'tables/ALL_BINNERS.sample.avg_metrics.tsv'), sep='\t',
                                 header=0)
-
-# below should be kept in the above processing in the future
-dataset_metrics_df['level_mode'] = [x + '_' + y for x, y in zip(dataset_metrics_df['level'],
-                                                                dataset_metrics_df['bin_mode']
-                                                                )]
-sample_metrics_df['level_mode'] = [x + '_' + y for x, y in zip(sample_metrics_df['level'],
-                                                               sample_metrics_df['bin_mode']
-                                                               )]
-dataset_metrics_df['binner_config'] = [x + '_' + y for x, y in zip(dataset_metrics_df['binner'],
-                                                                   dataset_metrics_df['bin_mode']
-                                                                   )]
-sample_metrics_df['binner_config'] = [x + '_' + y for x, y in zip(sample_metrics_df['binner'],
-                                                                  sample_metrics_df['bin_mode']
-                                                                  )]
 
 ########################################################################################################################
 ##### RUN NC STATS #####################################################################################################
@@ -371,12 +377,16 @@ sample_metrics_df['binner_config'] = [x + '_' + y for x, y in zip(sample_metrics
 print('############################################################')
 print("RUN NC STATS")
 print('############################################################')
-cnt_df_list = []
-for level_mode in sample_metrics_df['level_mode'].unique():
+'''
+tuk_df_list = []
+for level_mode_dataset in sample_metrics_df['level_mode_dataset'].unique():
     print('############################################################')
-    print(f"The Level tested is {level_mode}")
+    print(f"The Level tested is {level_mode_dataset}")
     print('############################################################')
-    sub_df = sample_metrics_df.query("level_mode == @level_mode")
+    sub_df = sample_metrics_df.query("level_mode_dataset == @level_mode_dataset")
+    level = sub_df['level'].values[0]
+    mode = sub_df['bin_mode'].values[0]
+    dataset = sub_df['dataset'].values[0]
     # stats f_oneway functions takes the groups as input and returns ANOVA F and p value
     fvalue, pvalue = sci_stats.f_oneway(
         *(sub_df.loc[sub_df['binner_config'] == group, 'ext_nc_uniq']
@@ -387,47 +397,29 @@ for level_mode in sample_metrics_df['level_mode'].unique():
                                alpha=0.05
                                )
     print(f"Results of ANOVA test:\n The F-statistic is: {fvalue}\n The p-value is: {pvalue}")
-    print(f"\nResults of Tukey HSD test:")
-    print(m_comp)
-    stat, p = sci_stats.kruskal(
-        *(sub_df.loc[sub_df['binner_config'] == group, 'ext_nc_uniq']
-          for group in sub_df['binner_config'].unique()
-          ))
-    print(f"\nResults of Kruskal-Wallis H Test:")
-    print('Statistics=%.3f, p=%.3f' % (stat, p))
-    # interpret
-    alpha = 0.05
-    if p > alpha:
-        print('Same distributions (fail to reject H0)')
-    else:
-        print('Different distributions (reject H0)')
-    '''
-    # Wilcoxon signed rank test
-    bc_list = sub_df['binner_config'].unique()
-    for bc0 in bc_list:
-        bc0_df = sub_df.query('binner_config == @bc0')
-        for bc1 in bc_list:
-            if ((bc0 != bc1) &
-                    (bc0.split('_', 1)[0] != bc1.split('_', 1)[0])
-            ):
-                bc1_df = sub_df.query('binner_config == @bc1')
-                print('Comparing:', bc0, 'and', bc1)
-                wc_stat = sci_stats.wilcoxon(bc0_df['ext_nc_uniq'],
-                                             bc1_df['ext_nc_uniq']
-                                             )
-                print(wc_stat)
-    flurp
-    '''
+    m_comp_df = pd.DataFrame(data=m_comp._results_table.data[1:], columns=m_comp._results_table.data[0])
+    m_comp_df['level'] = level
+    m_comp_df['bin_mode'] = mode
+    m_comp_df['dataset'] = dataset
+    tuk_df_list.append(m_comp_df)
+tuk_df = pd.concat(tuk_df_list)
+tuk_df.to_csv(os.path.join(workdir, 'stats/Tukey_HSD_NC.tsv'), sep='\t', index=False)
+'''
 
+cnt_df_list = []
+for level_mode in sample_metrics_df['level_mode'].unique():
+    sub_df = sample_metrics_df.query("level_mode == @level_mode")
     count_nc_df = sub_df.groupby(['binner_config']
                                  )['ext_nc_uniq'].sum().reset_index()
     sorted_nc_df = count_nc_df.sort_values(by=['ext_nc_uniq'], ascending=False
                                            ).reset_index()
     sorted_nc_df['level_mode'] = level_mode
     cnt_df_list.append(sorted_nc_df)
-    print(sorted_nc_df)
 
 cat_cnt_df = pd.concat(cnt_df_list)
+k_cols = [x for x in cat_cnt_df.columns if x != 'index']
+cat_cnt_df = cat_cnt_df[k_cols]
+cat_cnt_df.to_csv(os.path.join(workdir, 'stats/Countup_NC.tsv'), sep='\t', index=False)
 cat_cnt_df['binner'] = [x.split('_', 2)[0] + '_' + x.split('_', 2)[1]
                         if 'SABer' in x else x.split('_', 1)[0]
                         for x in cat_cnt_df['binner_config']
@@ -435,17 +427,22 @@ cat_cnt_df['binner'] = [x.split('_', 2)[0] + '_' + x.split('_', 2)[1]
 
 filter_list = ['SABer_denovo', 'SABer_hdbscan', 'SABer_ocsvm', 'SABer_intersect']
 filter_cnt_df = cat_cnt_df.query("binner not in @filter_list")
+filter_cnt_df.sort_values('ext_nc_uniq', ascending=False, inplace=True)
 dedup_cnt_df = filter_cnt_df.drop_duplicates(subset=['binner', 'level_mode'])
 dedup_cnt_df['binner_config_level_mode'] = [x + '_' + y for x, y
                                             in zip(dedup_cnt_df['binner_config'],
                                                    dedup_cnt_df['level_mode']
                                                    )]
-dedup_cnt_df.to_csv(os.path.join(workdir, 'tables/ALL_BINNERS.NC.uniq_sample.counts.tsv'),
+k_cols = [x for x in dedup_cnt_df.columns if x != 'index']
+dedup_cnt_df = dedup_cnt_df[k_cols]
+dedup_cnt_df.to_csv(os.path.join(workdir, 'stats/ALL_BINNERS.NC.uniq_sample.counts.tsv'),
                     sep='\t', index=False
                     )
 
 # Calculate the Recall diff between SAGs and xPGs
 bclm_list = list(dedup_cnt_df['binner_config_level_mode'].unique())
+print(bclm_list)
+
 bin_cat_df['binner_config_level_mode'] = [x + '_' + y for x, y
                                           in zip(bin_cat_df['binner_config'],
                                                  bin_cat_df['level_mode']
@@ -465,7 +462,7 @@ metric_df = bin_cat_df.query("level == 'strain_absolute' & "
                              "over20Kb == 'Yes' & "
                              "binner_config_level_mode in @bclm_list"
                              )
-metric_df.to_csv(os.path.join(workdir, 'tables/ALL_BINNERS.NC.metrics.tsv'),
+metric_df.to_csv(os.path.join(workdir, 'stats/ALL_BINNERS.NC.metrics.tsv'),
                  sep='\t', index=False
                  )
 
@@ -481,6 +478,7 @@ xpg_single_df = bin_cat_df.query("algorithm == 'xPG' & "
 xpg_single_df['ref_id'] = [x.rsplit('.', 1)[0]
                            for x in xpg_single_df['best_label']
                            ]
+
 diffxpg_single_df = xpg_single_df.merge(diffdna_single_df,
                                         on=['ref_id', 'sample_type',
                                             'sample_id', 'mode',
@@ -548,21 +546,25 @@ R_df.columns = ['best_label', 'dataset', 'sample_type',
                 ]
 R_df['type_rank'] = [type2rank[x] for x in R_df['dataset']]
 R_df.sort_values(by=['data_type', 'type_rank'], inplace=True)
-R_df.to_csv(os.path.join(workdir, 'tables/SABer.SAG_xPG.NC.tsv'), sep='\t', index=False)
+R_df.to_csv(os.path.join(workdir, 'SABer.SAG_xPG.NC.tsv'), sep='\t', index=False)
 palette_map = {'xPG': cmap_muted[1], 'SAG': cmap_muted[7]}
 boxie = sns.catplot(x="dataset", y="recall", hue="data_type",
                     col='mode', row='param_set',
                     alpha=0.50, jitter=0.25,
                     data=R_df, palette=palette_map
                     )
-boxie.savefig(os.path.join(workdir, 'boxplots/SABer.SAG_xPG.NC.boxplot.png'),
+boxie.savefig(os.path.join(workdir, 'plots/SABer.SAG_xPG.NC.catplot.pdf'),
+              dpi=300
+              )
+boxie.savefig(os.path.join(workdir, 'plots/SABer.SAG_xPG.NC.catplot.png'),
               dpi=300
               )
 plt.clf()
 plt.close()
 
-# keep_level = ['exact_absolute', 'strain_absolute']
-keep_level = ['strain_absolute']
+flurp
+
+keep_level = ['strain_assembly', 'strain_absolute']
 temp_cat_df = sample_metrics_df.copy().query("level in @keep_level")
 temp_cat_df['binner_config_level_mode'] = [x + '_' + y for x, y
                                            in zip(temp_cat_df['binner_config'],
@@ -594,7 +596,7 @@ boxie = sns.catplot(x="dataset", y="ext_nc_uniq", hue="binner",
                     linewidth=0.75, saturation=0.75, width=0.75,
                     palette=binner2cmap
                     )
-boxie.savefig(os.path.join(workdir, 'boxplots/ALL_BINNERS.NC.boxplot.png'),
+boxie.savefig(os.path.join(workdir, 'plots/ALL_BINNERS.NC.boxplot.pdf'),
               dpi=300
               )
 plt.clf()
@@ -607,7 +609,7 @@ boxie = sns.catplot(x="dataset", y="nc_avg_p", hue="binner",
                     linewidth=0.75, saturation=0.75, width=0.75,
                     palette=binner2cmap
                     )
-boxie.savefig(os.path.join(workdir, 'boxplots/ALL_BINNERS.NC_P.boxplot.png'),
+boxie.savefig(os.path.join(workdir, 'plots/ALL_BINNERS.NC_P.boxplot.pdf'),
               dpi=300
               )
 plt.clf()
@@ -620,7 +622,7 @@ boxie = sns.catplot(x="dataset", y="nc_avg_r", hue="binner",
                     linewidth=0.75, saturation=0.75, width=0.75,
                     palette=binner2cmap
                     )
-boxie.savefig(os.path.join(workdir, 'boxplots/ALL_BINNERS.NC_R.boxplot.png'),
+boxie.savefig(os.path.join(workdir, 'plots/ALL_BINNERS.NC_R.boxplot.pdf'),
               dpi=300
               )
 plt.clf()
@@ -633,14 +635,12 @@ boxie = sns.catplot(x="dataset", y="nc_avg_mcc", hue="binner",
                     linewidth=0.75, saturation=0.75, width=0.75,
                     palette=binner2cmap
                     )
-boxie.savefig(os.path.join(workdir, 'boxplots/ALL_BINNERS.NC_MCC.boxplot.png'),
+boxie.savefig(os.path.join(workdir, 'plots/ALL_BINNERS.NC_MCC.boxplot.pdf'),
               dpi=300
               )
 plt.clf()
 plt.close()
 
-# keep_level = ['exact_absolute', 'strain_absolute']
-keep_level = ['strain_absolute']
 temp_cat_df = dataset_metrics_df.copy().query("level in @keep_level")
 temp_cat_df['binner_config_level_mode'] = [x + '_' + y for x, y
                                            in zip(temp_cat_df['binner_config'],
@@ -668,7 +668,8 @@ sub_binstat_df.sort_values(by=['level_rank', 'bin_rank', 'type_rank'
 sum_binstat_df = sub_binstat_df.groupby(['binner', 'bin_rank',
                                          'type_rank', 'level_rank',
                                          'level_mode', 'dataset',
-                                         'binner_config_level_mode']
+                                         'binner_config_level_mode',
+                                         'binner_config']
                                         )['ext_nc_uniq'].sum().reset_index()
 sum_binstat_df.sort_values(by=['level_rank', 'bin_rank', 'type_rank'],
                            inplace=True)
@@ -679,15 +680,26 @@ barie = sns.catplot(x="dataset", y="ext_nc_uniq", hue="binner",
                     linewidth=0.75, saturation=0.75,
                     palette=binner2cmap
                     )
-barie.savefig(os.path.join(workdir, 'barplots/ALL_BINNERS.NC.barplot.png'),
+barie.savefig(os.path.join(workdir, 'plots/ALL_BINNERS.NC.barplot.pdf'),
               dpi=300
               )
 plt.clf()
 plt.close()
 
-sum_binstat_df.to_csv(os.path.join(workdir, 'tables/ALL_BINNERS.NC.uniq_dataset.counts.tsv'),
+sum_binstat_df.to_csv(os.path.join(workdir, 'stats/ALL_BINNERS.NC.uniq_dataset.counts.tsv'),
                       sep='\t', index=False
                       )
+flurp
+
+
+
+
+
+
+
+
+
+
 
 ########################################################################################################################
 ##### Scatter of >200Kbp bins ##########################################################################################

@@ -55,6 +55,13 @@ def procMetaGs(abr_path, mg_id, mg_raw_file_list, subcontig_path, nthreads):
         # Build/sorted .bam files
         mg_sort_out = runSamTools(abr_path, pe_id, nthreads, mg_id, mg_sam_out)
         sorted_bam_list.append(mg_sort_out)
+        # Clean up intermediates
+        logging.info('Cleaning up intermediate files...\n')
+        for s in ["*.sam", "*.bam", "*.stderr.txt", "*.stdout.txt"]:
+            s_utils.runCleaner(abr_path, s, skip_list=sorted_bam_list)
+
+
+
     logging.info('\n')
     mg_scale_out, mg_covm_out = runMBAcov(abr_path, mg_id, sorted_bam_list)
     # mg_covm_out = runCovM(abr_path, mg_id, nthreads, sorted_bam_list)
@@ -76,12 +83,12 @@ def runMiniMap2(abr_path, subcontig_path, mg_id, raw_file_list, nthreads):
         if len(raw_file_list) == 2:
             logging.info('Raw reads in FWD and REV file...\n')
             pe2 = raw_file_list[1]
-            mem_cmd = ['minimap2', '-ax', 'sr', '-t', str(nthreads), '-o', mg_sam_out,
+            mem_cmd = ['minimap2', '-ax', 'sr', '-I', '8G', '-t', str(nthreads), '-o', mg_sam_out,
                        o_join(subcontig_path, mg_id + '.subcontigs.fasta'), pe1, pe2
                        ]
         else:  # if the fastq is interleaved
             logging.info('Raw reads in interleaved file...\n')
-            mem_cmd = ['minimap2', '-ax', 'sr', '-t', str(nthreads), '-o', mg_sam_out,
+            mem_cmd = ['minimap2', '-ax', 'sr', '-I', '8G', '-t', str(nthreads), '-o', mg_sam_out,
                        o_join(subcontig_path, mg_id + '.subcontigs.fasta'), pe1
                        ]
 

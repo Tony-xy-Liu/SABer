@@ -24,3 +24,7 @@ dev_utils/renyi_entropy/SABer_CV/*
 !dev_utils/renyi_entropy/SABer_CV/MQ_agg_stats.tsv
 !dev_utils/renyi_entropy/SABer_CV/NC_agg_params.tsv
 !dev_utils/renyi_entropy/SABer_CV/NC_agg_stats.tsv
+
+dev_utils/genome_qc/.snakemake
+dev_utils/genome_qc/config.yaml
+

@@ -361,19 +361,28 @@ def tetra_cnt(fasta):  # TODO: add multi-processing to this function
     return std_tetra_df
 
 
-def runCleaner(dir_path, ptrn):
+def check_ent(ent, skip_list):
+    skip = False
+    for s in skip_list:
+        if s in ent:
+            skip = True
+    return skip
+
+
+def runCleaner(dir_path, ptrn, skip_list=[]):
     ptrn_glob = glob.glob(os.path.join(dir_path, ptrn))
     for ent in ptrn_glob:
-        if os.path.isfile(ent):
-            try:
-                os.remove(ent)
-            except:
-                print("Error while deleting file : ", ent)
-        elif os.path.isdir(ent):
-            try:
-                shutil.rmtree(ent)
-            except:
-                print("Error while deleting directory : ", ent)
+        if check_ent(ent, skip_list) == False:
+            if os.path.isfile(ent):
+                try:
+                    os.remove(ent)
+                except:
+                    print("Error while deleting file : ", ent)
+            elif os.path.isdir(ent):
+                try:
+                    shutil.rmtree(ent)
+                except:
+                    print("Error while deleting directory : ", ent)
 
 
 ##########################################################################
@@ -459,9 +468,8 @@ def real_best_match(piv_df, real_piv_df, real_umap_df, working_dir):
         keep_diff = [r1, '', np.inf]
         for r2, row2 in piv_df.iterrows():
             euc_d = np.linalg.norm(row1 - row2)
-            if euc_d < keep_diff[2] and r1.strip('_test') != r2: # TODO: remove second if test once bench is done
+            if euc_d < keep_diff[2]:
                 keep_diff = [r1, r2, euc_d]
-        print(keep_diff)
         r_cmpr_list.append(keep_diff)
     r_cmpr_df = pd.DataFrame(r_cmpr_list, columns=['sample_id', 'best_match', 'euc_d'])
     best_df = real_umap_df.merge(r_cmpr_df, on='sample_id', how='left')
@@ -494,21 +502,8 @@ def calc_real_entrophy(mba_cov_list, working_dir):
     entropy_list = []
     for samp_file in mba_cov_list:
         samp_id = samp_file.split('/')[-1].rsplit('.', 1)[0]
-        #####################################################################
-        # Added just for benchmarking, REMOVE after analysis is complete!!! #
-        #####################################################################
-        skip_id = working_dir.rsplit('/', 1)[1].split('_', 1)[0]
-        last_int = working_dir.rsplit('/', 1)[1].rsplit('_', 2)[1]
-        samp_id = skip_id + '_' + last_int + '_test'
-        print(samp_id)
-        #####################################################################
-        if '_' in samp_id:
-            if samp_id.rsplit('_')[1][0].isdigit():
-                samp_label = samp_id.rsplit('_', 1)[0]
-                samp_rep = samp_id.rsplit('_', 1)[1]
-        else:
-            samp_label = samp_id
-            samp_rep = 0
+        samp_label = samp_id
+        samp_rep = 0
         cov_df = pd.read_csv(samp_file, sep='\t', header=0)
         cov_df['hash_id'] = [hashlib.sha256(x.encode(encoding='utf-8')).hexdigest()
                              for x in cov_df['contigName']

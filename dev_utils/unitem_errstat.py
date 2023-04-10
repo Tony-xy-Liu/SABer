@@ -12,9 +12,6 @@ import pandas as pd
 import pyfastx
 from tqdm import tqdm
 
-# specify that all columns should be shown
-pd.set_option('max_columns', None)
-
 
 def EArecruit(p):  # Error Analysis for all recruits per sag
     col_id, temp_id, temp_clust_df, temp_contig_df, temp_src2contig_list, \
@@ -200,13 +197,13 @@ def get_seqs(fasta_file):
 def cluster2taxonomy(p):
     clust, clust2src_df = p
     sub_clust_df = clust2src_df.query('best_label == @clust')
-    exact_df = sub_clust_df.groupby(['CAMI_genomeID'])['bp_cnt'].sum().reset_index()
+    exact_df = sub_clust_df.groupby(['exact_label'])['bp_cnt'].sum().reset_index()
     strain_df = sub_clust_df.groupby(['strain'])['bp_cnt'].sum().reset_index()
-    ex_label_df = exact_df[exact_df.bp_cnt == exact_df.bp_cnt.max()]['CAMI_genomeID']
+    ex_label_df = exact_df[exact_df.bp_cnt == exact_df.bp_cnt.max()]['exact_label']
     try:
         if not ex_label_df.empty:
             exact_label = exact_df[exact_df.bp_cnt == exact_df.bp_cnt.max()
-                                   ]['CAMI_genomeID'].values[0]
+                                   ]['exact_label'].values[0]
             strain_label = strain_df[strain_df.bp_cnt == strain_df.bp_cnt.max()
                                      ]['strain'].values[0]
             return [clust, exact_label, strain_label]
@@ -215,10 +212,12 @@ def cluster2taxonomy(p):
         sys.exit()
 
 
-def runErrorAnalysis(bin_path, synsrc_path, src_metag_file, sample_id, nthreads):
+def runErrorAnalysis(bin_path, synsrc_path, src_metag_file,
+                     sample_type, sample_id, binner, nthreads
+                     ):
     ##################################################################################################
     # INPUT files
-    sag_tax_map = joinpath(synsrc_path, 'genome_taxa_info.tsv')
+    sag_tax_map = joinpath('/home/ryan/SABer_bench/GenQC', 'CAMI2.gen2ncbi.csv') # synsrc_path, 'genome_taxa_info.tsv')
     mg_contig_map = joinpath(synsrc_path, 'gsa_mapping_pool.binning')
     src_contig_cnt = joinpath(synsrc_path, 'src_fasta.stats.tsv')
     src2id_map = joinpath(synsrc_path, 'genome_to_id.tsv')
@@ -239,42 +238,30 @@ def runErrorAnalysis(bin_path, synsrc_path, src_metag_file, sample_id, nthreads)
     src_cnt_df['src_id'] = [x.rsplit('/', 1)[1].rsplit('.', 1)[0] for x in src_cnt_df['file']]
     src2id_df['src_id'] = [x.rsplit('/', 1)[1].rsplit('.', 1)[0] for x in src2id_df['file']]
     src_stats_df = src2id_df.merge(src_cnt_df, on='src_id')
-
+    src_stats_df = src_stats_df.rename(columns={'CAMI_genomeID': 'exact_label'})
     # Map genome id and contig id to taxid for error analysis
-    sag_taxmap_df = pd.read_csv(sag_tax_map, sep='\t', header=0)
-    sag_taxmap_df['sp_taxid'] = [int(x) for x in sag_taxmap_df['@@TAXID']]
-    sag_taxmap_df['sp_name'] = [x.split('|')[-2] for x in sag_taxmap_df['TAXPATHSN']]
-    taxpath_list = [[str(x) for x in x.split('.')[0].split('|')]
-                    for x in sag_taxmap_df['TAXPATH']
-                    ]
-    taxpath_df = pd.DataFrame(taxpath_list, columns=['domain', 'phylum', 'class', 'order',
-                                                     'family', 'genus', 'species', 'strain'
-                                                     ])
-    taxpath_df['CAMI_genomeID'] = [x for x in sag_taxmap_df['_CAMI_genomeID']]
-    # fix empty species id's
-    taxpath_df['species'] = [x[1] if str(x[0]) == '' else x[0] for x in
-                             zip(taxpath_df['species'], taxpath_df['genus'])
-                             ]
+    sag_taxmap_df = pd.read_csv(sag_tax_map, sep=',', header=0)
     # Map MetaG contigs to their genomes
     mg_contig_map_df = pd.read_csv(mg_contig_map, sep='\t', header=0)
-    # mg_contig_map_df['TAXID'] = [str(x) for x in mg_contig_map_df['TAXID']]
-
+    mg_contig_map_df.columns = ['contig_id', 'exact_label', 'taxid']
     # Merge contig map and taxpath DFs
-    tax_mg_df = mg_contig_map_df.merge(taxpath_df, right_on='CAMI_genomeID', left_on='BINID',
-                                       how='right'
-                                       )
-    tax_mg_df = tax_mg_df[['@@SEQUENCEID', 'CAMI_genomeID', 'domain', 'phylum', 'class', 'order',
-                           'family', 'genus', 'species', 'strain'
-                           ]]
+    tax_mg_df = mg_contig_map_df.merge(sag_taxmap_df, on='exact_label', how='right')
+    tax_mg_df = tax_mg_df[['contig_id', 'exact_label', 'species',
+                           'strain', 'sample_type']
+                          ].query("sample_type == @sample_type")
     # count all bp's for Source genomes, Source MetaG, MockSAGs
     # count all bp's for each read in metaG
     src_metag_cnt_dict = cnt_contig_bp(src_metag_file)
     src_contig_list = list(src_metag_cnt_dict.keys())
-    tax_mg_df = tax_mg_df.loc[tax_mg_df['@@SEQUENCEID'].isin(src_contig_list)]
+    tax_mg_df = tax_mg_df.loc[tax_mg_df['contig_id'].isin(src_contig_list)]
     # Add to tax DF
-    tax_mg_df['bp_cnt'] = [src_metag_cnt_dict[x] for x in tax_mg_df['@@SEQUENCEID']]
+    tax_mg_df['bp_cnt'] = [src_metag_cnt_dict[x]
+                           for x in tax_mg_df['contig_id']
+                           ]
     # add src total bp count
-    tax_mg_df = tax_mg_df.merge(src_stats_df[['CAMI_genomeID', 'sum_len']], on='CAMI_genomeID')
+    tax_mg_df = tax_mg_df.merge(src_stats_df[['exact_label', 'sum_len']],
+                                on='exact_label'
+                                ).drop_duplicates()
     tax_mg_df.to_csv(src2contig_file, sep='\t', index=False)
 
     ###################################################################################################
@@ -284,20 +271,21 @@ def runErrorAnalysis(bin_path, synsrc_path, src_metag_file, sample_id, nthreads)
     cluster_trim_df = cluster_df.copy()  # .query('best_label != -1')
     src2contig_df = pd.read_csv(src2contig_file, header=0, sep='\t')
     src2contig_df = src2contig_df.rename(columns={'@@SEQUENCEID': 'contig_id'})
-    if 'MGE' in synsrc_path:
-        src2contig_df['sample_id'] = 'S0'
-    else:
-        src2contig_df['sample_id'] = [x.rsplit('C', 1)[0] for x in src2contig_df['contig_id']]
+    src2contig_df['sample_id'] = [x.rsplit('C', 1)[0] for x in src2contig_df['contig_id']]
     contig_bp_df = src2contig_df[['contig_id', 'bp_cnt', 'sample_id']]
-    clust2src_df = cluster_trim_df.merge(src2contig_df[['contig_id', 'CAMI_genomeID',
-                                                        'strain', 'bp_cnt']],
+    clust2src_df = cluster_trim_df.merge(src2contig_df[['contig_id',
+                                                        'exact_label',
+                                                        'strain',
+                                                        'species',
+                                                        'bp_cnt']],
                                          on='contig_id', how='left'
                                          )
-    if 'MGE' in synsrc_path:
-        clust2src_df['sample_id'] = 'S0'
-    else:
-        clust2src_df['sample_id'] = [x.rsplit('C', 1)[0] for x in clust2src_df['contig_id']]
-    src_bp_dict = {x: y for x, y in zip(src2contig_df['CAMI_genomeID'], src2contig_df['sum_len'])}
+    clust2src_df['sample_id'] = [x.rsplit('C', 1)[0]
+                                 for x in clust2src_df['contig_id']
+                                 ]
+    src_bp_dict = {x: y for x, y in zip(src2contig_df['exact_label'],
+                                        src2contig_df['sum_len']
+                                        )}
 
     # subset recruit dataframes
     samp_id = 'S' + str(sample_id)
@@ -305,11 +293,11 @@ def runErrorAnalysis(bin_path, synsrc_path, src_metag_file, sample_id, nthreads)
     contig_bp_df = contig_bp_df.query('sample_id == @samp_id').drop_duplicates()
 
     # possible bp's based on asm vs ref genome
-    exact2bp_df = src2contig_df[['CAMI_genomeID', 'strain', 'sample_id', 'sum_len'
-                                 ]].copy().drop_duplicates()
-    asm2bp_df = src2contig_df.groupby(['CAMI_genomeID', 'strain', 'sample_id']
+    exact2bp_df = src2contig_df[['exact_label', 'strain', 'sample_id',
+                                 'sum_len']].copy().drop_duplicates()
+    asm2bp_df = src2contig_df.groupby(['exact_label', 'strain', 'sample_id']
                                       )[['bp_cnt']].sum().reset_index()
-    poss_bp_df = asm2bp_df.merge(exact2bp_df, on=['CAMI_genomeID', 'strain', 'sample_id'], how='left')
+    poss_bp_df = asm2bp_df.merge(exact2bp_df, on=['exact_label', 'strain', 'sample_id'], how='left')
     poss_bp_df.columns = ['exact_label', 'strain_label', 'sample_id', 'possible_bp', 'total_bp']
     poss_bp_df['asm_per_bp'] = [x / y for x, y in
                                 zip(poss_bp_df['possible_bp'],
@@ -346,7 +334,7 @@ def runErrorAnalysis(bin_path, synsrc_path, src_metag_file, sample_id, nthreads)
         # Map Sources/SAGs to Strain IDs
         src_id = sub_clust_df['exact_label'].values[0]
         strain_id = sub_clust_df['strain_label'].values[0]
-        src_sub_df = src2contig_df.query('CAMI_genomeID == @src_id')
+        src_sub_df = src2contig_df.query('exact_label == @src_id')
         strain_sub_df = src2contig_df.query('strain == @strain_id')
         src2contig_list = list(set(src_sub_df['contig_id'].values))
         src2strain_list = list(set(strain_sub_df['contig_id'].values))
@@ -381,7 +369,7 @@ def runErrorAnalysis(bin_path, synsrc_path, src_metag_file, sample_id, nthreads)
     score_tax_df['MQ_bins'] = 'No'
     score_tax_df.loc[(score_tax_df['precision'] >= 0.9) &
                      (score_tax_df['sensitivity'] >= 0.5), 'MQ_bins'] = 'Yes'
-
+    '''
     stat_mean_df = score_tax_df.groupby(['level', 'algorithm', '>20Kb', 'NC_bins',
                                          'MQ_bins'])[['precision', 'sensitivity', 'MCC',
                                                       'F1']].mean().reset_index()
@@ -408,8 +396,12 @@ def runErrorAnalysis(bin_path, synsrc_path, src_metag_file, sample_id, nthreads)
                                                                    'NC_bins', 'MQ_bins'
                                                                    ]), dfs
                      )
+    '''
+    score_tax_df['sample_type'] = sample_type
+    score_tax_df['sample_id'] = sample_id
+    score_tax_df['binner'] = binner
     score_tax_df.to_csv(denovo_errstat_file, index=False, sep='\t')
-    stat_df.to_csv(denovo_mean_file, index=False, sep='\t')
+    #stat_df.to_csv(denovo_mean_file, index=False, sep='\t')
 
     ###########################################################################
     # Compile all results tables from analysis
@@ -463,5 +455,8 @@ def runErrorAnalysis(bin_path, synsrc_path, src_metag_file, sample_id, nthreads)
     cat_df['ext_nc_poss'] = nc_x_poss
     cat_df['str_mq_poss'] = mq_s_poss
     cat_df['str_nc_poss'] = nc_s_poss
+    cat_df['sample_type'] = sample_type
+    cat_df['sample_id'] = sample_id
+    cat_df['binner'] = binner
 
     return cat_df
