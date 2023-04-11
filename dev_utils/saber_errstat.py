@@ -1082,8 +1082,14 @@ def runErrorAnalysis(saberout_path, synsrc_path, src_metag_file, mocksag_path,
 
     ##################################################################################################
     # xPGs errstat (includes SAGs and intersect)
-    cluster_df = pd.read_csv(inter_out_file, header=0, sep='\t')
-
+    
+    cluster_list = [('HDBSCAN', trusted_out_file), ('OC-SVM', ocsvm_out_file), ('intersection', inter_out_file)]
+    c_df_list = []
+    for cfile in cluster_list:
+        cfile_df = pd.read_csv(cfile[1], header=0, sep='\t')
+        cfile_df['algo'] = cfile[0]
+        c_df_list.append(cfile_df)
+    cluster_df = pd.concat(c_df_list)
     src2contig_df = pd.read_csv(src2contig_file, header=0, sep='\t')
     src2contig_df = src2contig_df.rename(columns={'@@SEQUENCEID': 'contig_id'})
     sag2cami_df = pd.read_csv(sag2cami_file, header=0, sep='\t')
@@ -1102,23 +1108,25 @@ def runErrorAnalysis(saberout_path, synsrc_path, src_metag_file, mocksag_path,
     print("xPGs error analysis started...")
     pool = multiprocessing.Pool(processes=nthreads)
     arg_list = []
-    for clust in tqdm(cluster_df['best_label'].unique()):
-        # subset recruit dataframes
-        sub_clust_df = cluster_df.query('best_label == @clust')
-        r_id = clust.rsplit('.', 1)[0]
-        sub_diff_df = dnadiff_df.query("ref_id == @r_id")
-        dedup_clust_df = sub_clust_df[['best_label', 'contig_id']].drop_duplicates()
-        # Map Sources/SAGs to Strain IDs
-        src_id = sag2contig_df.query('sag_id == @clust')['exact_label'].values[0]
-        strain_id = sag2contig_df.query('sag_id == @clust')['strain'].values[0]
-        if str(strain_id) != 'nan':  # if the sample didn't contain the genome in the first place skip it
-            src_sub_df = src2contig_df.query('exact_label == @src_id')
-            strain_sub_df = src2contig_df.query('strain == @strain_id')
-            src2contig_list = list(set(src_sub_df['contig_id'].values))
-            src2strain_list = list(set(strain_sub_df['contig_id'].values))
-            arg_list.append(['best_label', clust, dedup_clust_df, contig_bp_df, src2contig_list,
-                             src2strain_list, 'xPG', src_id, strain_id, src_bp_dict, sub_diff_df
-                             ])
+    for algo in tqdm(cluster_df['algo'].unique()):
+        algo_clust_df = cluster_df.query('algo == @algo')
+        for clust in tqdm(algo_clust_df['best_label'].unique()):
+            # subset recruit dataframes
+            sub_clust_df = algo_clust_df.query('best_label == @clust')
+            r_id = clust.rsplit('.', 1)[0]
+            sub_diff_df = dnadiff_df.query("ref_id == @r_id")
+            dedup_clust_df = sub_clust_df[['best_label', 'contig_id']].drop_duplicates()
+            # Map Sources/SAGs to Strain IDs
+            src_id = sag2contig_df.query('sag_id == @clust')['exact_label'].values[0]
+            strain_id = sag2contig_df.query('sag_id == @clust')['strain'].values[0]
+            if str(strain_id) != 'nan':  # if the sample didn't contain the genome in the first place skip it
+                src_sub_df = src2contig_df.query('exact_label == @src_id')
+                strain_sub_df = src2contig_df.query('strain == @strain_id')
+                src2contig_list = list(set(src_sub_df['contig_id'].values))
+                src2strain_list = list(set(strain_sub_df['contig_id'].values))
+                arg_list.append(['best_label', clust, dedup_clust_df, contig_bp_df, src2contig_list,
+                                 src2strain_list, 'xPG_' + algo, src_id, strain_id, src_bp_dict, sub_diff_df
+                                 ])
     for a in arg_list:
         EAxpg(a)
     results = pool.imap_unordered(EAxpg, arg_list)
