@@ -425,7 +425,7 @@ cat_cnt_df['binner'] = [x.split('_', 2)[0] + '_' + x.split('_', 2)[1]
                         for x in cat_cnt_df['binner_config']
                         ]
 
-filter_list = ['SABer_hdbscan', 'SABer_ocsvm', 'SABer_intersect', 'SABer_denovo']
+filter_list = ['SABer_denovo', 'SABer_hdbscan', 'SABer_ocsvm', 'SABer_intersect']
 filter_cnt_df = cat_cnt_df.query("binner not in @filter_list")
 filter_cnt_df.sort_values('ext_nc_uniq', ascending=False, inplace=True)
 dedup_cnt_df = filter_cnt_df.drop_duplicates(subset=['binner', 'level_mode'])
@@ -783,7 +783,7 @@ cat_cnt_df['binner'] = [x.split('_', 2)[0] + '_' + x.split('_', 2)[1]
                         if 'SABer' in x else x.split('_', 1)[0]
                         for x in cat_cnt_df['binner_config']
                         ]
-filter_list = ['SABer_hdbscan', 'SABer_ocsvm', 'SABer_intersect']
+filter_list = ['SABer_denovo', 'SABer_hdbscan', 'SABer_ocsvm', 'SABer_intersect']
 filter_cnt_df = cat_cnt_df.query("binner not in @filter_list")
 dedup_cnt_df = filter_cnt_df.drop_duplicates(subset=['binner', 'level_mode'])
 dedup_cnt_df.to_csv(os.path.join(workdir, 'tables/ALL_BINNERS.MQ.uniq_sample.counts.tsv'),
