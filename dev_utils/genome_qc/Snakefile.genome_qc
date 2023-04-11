@@ -18,6 +18,7 @@ comp = config["completeness"]
 cont = config["contamination"]
 qsmin = config["qscore_min"]
 condaenv = config["condaenv"]
+gunc_db = config["gunc_db"]
 ######################
 
 dir_name = os.listdir(working_dir)
@@ -62,14 +63,14 @@ rule run_seqkit_seq:
 		f_size="{filter_size}"
 		if [ -z "$f_size" ];
 		then
-			for g in {working_dir}/{wildcards.sample}/{genome_dir}/*.fa; do base=$(basename $g | rev | cut -d'.' -f2- | rev); echo full $base; seqkit seq -m 0 -o {filtered_genome_dir}/$base.full.fasta $g; done;				
+			for g in $(ls {working_dir}/{wildcards.sample}/{genome_dir}/*.{{fa,fna,fasta}}); do base=$(basename $g | rev | cut -d'.' -f2- | rev); echo full $base; seqkit seq -m 0 -o {filtered_genome_dir}/$base.full.fasta $g; done;				
 		else
 			pattern=" "
 			if [[ $f_size =~ $pattern ]]
 			then
-				for size in $f_size; do for g in {working_dir}/{wildcards.sample}/{genome_dir}/*.fa; do base=$(basename $g | rev | cut -d'.' -f2- | rev); echo $size $base; seqkit seq -m $size -o {filtered_genome_dir}/$base.$size.fasta $g; done; done;
+				for size in $f_size; do for g in $(ls {working_dir}/{wildcards.sample}/{genome_dir}/*.{{fa,fna,fasta}}); do base=$(basename $g | rev | cut -d'.' -f2- | rev); echo $size $base; seqkit seq -m $size -o {filtered_genome_dir}/$base.$size.fasta $g; done; done;
 			else
-				for g in {working_dir}/{wildcards.sample}/{genome_dir}/*.fa; do base=$(basename $g | rev | cut -d'.' -f2- | rev); echo $f_size $base; seqkit seq -m $f_size -o {filtered_genome_dir}/$base.$f_size.fasta $g; done;
+				for g in $(ls {working_dir}/{wildcards.sample}/{genome_dir}/*.{{fa,fna,fasta}}); do base=$(basename $g | rev | cut -d'.' -f2- | rev); echo $f_size $base; seqkit seq -m $f_size -o {filtered_genome_dir}/$base.$f_size.fasta $g; done;
 			fi
 		fi
 		echo "Done."  > {output.out_log}
@@ -125,7 +126,7 @@ rule run_seqkit_stat:
 	shell:
 		"""
 		mkdir -p {working_dir}/{wildcards.sample}/seqkit
-		seqkit stat -a -T -o {working_dir}/{wildcards.sample}/seqkit/seqkit_stats.tsv {input.fasta_dir}/*.fasta
+		seqkit stat -a -T -o {working_dir}/{wildcards.sample}/seqkit/seqkit_stats.tsv $(ls {input.fasta_dir}/*.{{fa,fna,fasta}})
 		echo "Done."  > {output.out_log}
 		"""
 		
@@ -313,6 +314,6 @@ rule run_gunc:
 	shell:
 		"""
 		mkdir -p {working_dir}/{wildcards.sample}/gunc
-		gunc run -r /home/ubuntu/databases/gunc_db/dest_path/gunc_db_progenomes2.1.dmnd -d {working_dir}/{wildcards.sample}/dedupe/fasta -o {working_dir}/{wildcards.sample}/gunc -e .fasta -t {threads}
+		gunc run -r {gunc_db} -d {working_dir}/{wildcards.sample}/dedupe/fasta -o {working_dir}/{wildcards.sample}/gunc -e .fasta -t {threads}
 		echo "Done."  > {output.out_log}
 		"""
