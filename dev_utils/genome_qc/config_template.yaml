@@ -7,3 +7,4 @@ filter_size: "1000" # if empty, no filter. if multiple, space delimited. e.g. "1
 completeness: "50" # >= checkm completeness
 contamination: "5" # <= checkm contamination
 qscore_min: "50" # >= derived q-score
+gunc_db: "/full/path/to/gunc_db_progenomes2.1.dmnd" # global path to GUNC database
