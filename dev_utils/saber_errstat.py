@@ -41,9 +41,14 @@ def EAxpg(p):
     strain_truth = list(merge_recruits_df['strain_truth'])
     src_total_bp = tot_bp_dict[src_id]
     algo_list = [algorithm]
-    xPG_bp_cnt = int(diff_df.loc[diff_df['tag'] == 'xPG', 'AlignedBases'].values[0])
-    xPG_unaligned = int(diff_df.loc[diff_df['tag'] == 'xPG', 'UnalignedBases'].values[0])
-    xPG_total = int(diff_df.loc[diff_df['tag'] == 'xPG', 'TotalBases'].values[0])
+    if diff_df:
+        xPG_bp_cnt = int(diff_df.loc[diff_df['tag'] == 'xPG', 'AlignedBases'].values[0])
+        xPG_unaligned = int(diff_df.loc[diff_df['tag'] == 'xPG', 'UnalignedBases'].values[0])
+        xPG_total = int(diff_df.loc[diff_df['tag'] == 'xPG', 'TotalBases'].values[0])
+    else:
+        xPG_bp_cnt = 0
+        xPG_unaligned = 0
+        xPG_total = 0
     stats_lists = []
     for algo in algo_list:
         pred = list(merge_recruits_df[algo])
@@ -603,7 +608,10 @@ def runErrorAnalysis(saberout_path, synsrc_path, src_metag_file, mocksag_path,
     dnadiff_file = joinpath(err_path, 'diffdna_allrefs.tsv')
     dnadiff_df.to_csv(dnadiff_file, index=False, sep='\t')
     '''
-    dnadiff_df = pd.read_csv(joinpath(err_path, 'diffdna_allrefs.tsv'), sep='\t', header=0)
+    try:
+        dnadiff_df = pd.read_csv(joinpath(err_path, 'diffdna_allrefs.tsv'), sep='\t', header=0)
+    except:
+        dnadiff_df = None
     #dnadiff_df['algo'] = [x.rsplit('.', 1)[1] for x in dnadiff_df['ref_id']]
     #dnadiff_df['ref_id'] = [x.rsplit('.', 1)[0] for x in dnadiff_df['ref_id']]
     #dnadiff_df = dnadiff_df[dnadiff_df['algo'] == 'intersect']
@@ -1114,7 +1122,10 @@ def runErrorAnalysis(saberout_path, synsrc_path, src_metag_file, mocksag_path,
             # subset recruit dataframes
             sub_clust_df = algo_clust_df.query('best_label == @clust')
             r_id = clust.rsplit('.', 1)[0]
-            sub_diff_df = dnadiff_df.query("ref_id == @r_id")
+            if dnadiff_df:
+                sub_diff_df = dnadiff_df.query("ref_id == @r_id")
+            else:
+                sub_diff_df = None
             dedup_clust_df = sub_clust_df[['best_label', 'contig_id']].drop_duplicates()
             # Map Sources/SAGs to Strain IDs
             src_id = sag2contig_df.query('sag_id == @clust')['exact_label'].values[0]

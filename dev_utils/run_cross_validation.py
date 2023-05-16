@@ -33,17 +33,20 @@ mg_asm = sys.argv[3]
 sample = sys.argv[4]
 threads = int(sys.argv[5])
 
+sample_type = working_dir.split('/')[-4].rsplit('_')[-1]
+sample_id = sample
+
 # Find previously run files and build needed inputs
 mhr_recruits = glob.glob(os.path.join(working_dir, '*.201.mhr_contig_recruits.tsv'))
 if mhr_recruits:
     mhr_file = os.path.basename(mhr_recruits[0])
     mg_file = [mhr_file.replace('.201.mhr_contig_recruits.tsv', ''), None]
-    # Run MinHash recruiting algorithm
-    minhash_df_dict = mhr.run_minhash_recruiter(working_dir,
-                                                working_dir,
-                                                None, mg_file,
-                                                threads
-                                                )
+    ## Run MinHash recruiting algorithm
+    #minhash_df_dict = mhr.run_minhash_recruiter(working_dir,
+    #                                            working_dir,
+    #                                            None, mg_file,
+    #                                            threads
+    #                                            )
 else:
     minhash_df_dict = False
 
@@ -51,15 +54,15 @@ abr_recruits = glob.glob(os.path.join(working_dir, '*.coverage.scaled.tsv'))
 abr_file = os.path.basename(abr_recruits[0])
 mg_file = [abr_file.replace('.coverage.scaled.tsv', ''), None]
 # Build abundance tables
-abund_file = abr.runAbundRecruiter(working_dir,
-                                   working_dir, mg_file,
-                                   None,
-                                   threads
-                                   )
+#abund_file = abr.runAbundRecruiter(working_dir,
+#                                   working_dir, mg_file,
+#                                   None,
+#                                   threads
+#                                   )
 # Build tetra hz tables
-tetra_file = tra.run_tetra_recruiter(working_dir,
-                                     mg_file
-                                     )
+#tetra_file = tra.run_tetra_recruiter(working_dir,
+#                                     mg_file
+#                                     )
 
 # Run iterative clusterings using all the different params from above
 # First do HDBSCAN and keep OCSVM static
@@ -72,10 +75,14 @@ for mcs, mss in hdbscan_combo:
         output_path = os.path.join(working_dir, '_'.join(['hdbscan', str(mcs), str(mss)]))
         if not os.path.exists(output_path):
             os.makedirs(output_path)
-        clusters = clst.runClusterer(mg_id, working_dir, output_path, abund_file, tetra_file,
-                                     minhash_df_dict, mcs, mss, mcs, mss, 0.5, 'scale', threads
-                                     )
-        run_err_df = err.runErrorAnalysis(output_path, synthdata_dir, mg_asm, mockpath, threads)
+        #clusters = clst.runClusterer(mg_id, working_dir, output_path, abund_file, tetra_file,
+        #                             minhash_df_dict, mcs, mss, mcs, mss, 0.5, 'scale', threads
+        #                             )
+        mode = 'hdbscan_cv'
+        params = '_'.join([str(x) for x in [mcs, mss, mcs, mss, 0.5, 'scale']])
+        run_err_df = err.runErrorAnalysis(output_path, synthdata_dir, mg_asm, mockpath,
+                                          sample_type, sample_id, mode, params, threads
+                                          )
         cat_err_list.append(run_err_df)
 
 # Next do the OCSVM
@@ -85,11 +92,15 @@ for nu, gamma in ocsvm_combo:
     output_path = os.path.join(working_dir, '_'.join(['ocsvm', str(nu), str(gamma)]))
     if not os.path.exists(output_path):
         os.makedirs(output_path)
-    clusters = clst.runClusterer(mg_id, working_dir, output_path, abund_file, tetra_file,
-                                 minhash_df_dict, 100, 25, 100, 25, nu, gamma, threads
-                                 )
-    run_err_df = err.runErrorAnalysis(output_path, synthdata_dir, mg_asm, mockpath, threads)
+    #clusters = clst.runClusterer(mg_id, working_dir, output_path, abund_file, tetra_file,
+    #                             minhash_df_dict, 100, 25, 100, 25, nu, gamma, threads
+    #                             )
+    mode = 'ocsvm_cv'
+    params = '_'.join([str(x) for x in [100, 25, 100, 25, nu, gamma]])
+    run_err_df = err.runErrorAnalysis(output_path, synthdata_dir, mg_asm, mockpath,
+                                      sample_type, sample_id, mode, params, threads
+                                      )
     cat_err_list.append(run_err_df)
 
 cat_err_df = pd.concat(cat_err_list)
-cat_err_df.to_csv(os.path.join(working_dir, 'CV_errstat.tsv'), sep='\t', index=False)
+cat_err_df.to_csv(os.path.join(working_dir, 'CV_errstat_new.tsv'), sep='\t', index=False)

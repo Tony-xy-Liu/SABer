@@ -13,14 +13,17 @@ trna_gffs = [x for x in glob.glob(os.path.join(trna_dir, "*.gff"))]
 
 gff_list = []
 for gff in trna_gffs:
-	gff_df = pd.read_csv(gff, sep='\t', header=None, comment='#')
-	gff_df.columns = ['seqid', 'source', 'type', 'start', 'end',
-					  'score', 'strand', 'phase', 'attributes'
-					  ]
-	trna_df = gff_df.query("type == 'tRNA'")
-	trna_df['genome_id'] = os.path.basename(gff).rsplit('.', 1)[0]
-	trna_df['isotype'] = [x.split('isotype=')[1].split(';')[0] for x in trna_df['attributes']]
-	gff_list.append(trna_df)
+	
+	empty = os.stat(gff).st_size == 0
+	if not empty:
+		gff_df = pd.read_csv(gff, sep='\t', header=None, comment='#')
+		gff_df.columns = ['seqid', 'source', 'type', 'start', 'end',
+						  'score', 'strand', 'phase', 'attributes'
+						  ]
+		trna_df = gff_df.query("type == 'tRNA'")
+		trna_df['genome_id'] = os.path.basename(gff).rsplit('.', 1)[0]
+		trna_df['isotype'] = [x.split('isotype=')[1].split(';')[0] for x in trna_df['attributes']]
+		gff_list.append(trna_df)
 
 gff_cat_df = pd.concat(gff_list)
 gff_cat_df.to_csv(os.path.join(trna_dir, 'trnascan_gff_table.tsv'), sep='\t', index=False)
