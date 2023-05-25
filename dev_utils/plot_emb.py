@@ -133,9 +133,11 @@ cat_df['Genome_Id'] = genome_id
 cat_df['family'] = [sag2fam[s] if s in list(sag2fam.keys())
 					else None for s in cat_df['Genome_Id']
 					]
+sup_dict = {'SUP05': 'SUP-05_1', 'Thioglobus': 'SUP-05_2'}
 cat_df['genus'] = [sag2gen[s] if s in list(sag2fam.keys())
 					else None for s in cat_df['Genome_Id']
 					]
+cat_df['genus'] = [sup_dict[x] if x in sup_dict.keys() else x for x in cat_df['genus']]
 '''
 sctr = sns.scatterplot(data=cat_df.query("type == 'not_recruited'"),
 					   x=0, y=1, hue='type', palette=['gray'],
@@ -153,8 +155,8 @@ sctr.figure.savefig("/home/ryan/SABer_local/SI/QC_run/xPGs/family_cluster_umap.p
 plt.clf()
 plt.close()
 '''
-family_cmap = ['blue', 'orange', 'green', 'red', 'purple', 'brown', 'pink']
-genus_cmap = ['blue', 'orange', 'green', 'red', 'purple', 'brown', 'pink']
+family_cmap = ['blue', 'green', 'red', 'orange', 'purple', 'brown', 'pink']
+genus_cmap = ['blue', '#1B9E77', 'red', '#66A61E', 'purple', 'brown', 'pink']
 family_list = list(cat_df['family'].unique())
 genus_list = list(cat_df['genus'].unique())
 with PdfPages("/home/ryan/SABer_local/SI/QC_run/xPGs/family_cluster_umap.pdf") as pdf_pages:
@@ -186,7 +188,7 @@ with PdfPages("/home/ryan/SABer_local/SI/QC_run/xPGs/family_cluster_umap.pdf") a
 with PdfPages("/home/ryan/SABer_local/SI/QC_run/xPGs/genus_cluster_umap.pdf") as pdf_pages:
 	for i,g_id in enumerate(genus_list):
 		if g_id != None:
-			print(f_id)
+			print(g_id)
 			g_pal = genus_cmap[i]
 			gen_cat_df = cat_df.query("genus == @g_id")
 			non_cat_df = cat_df.query("genus != @g_id | type == 'not_recruited'")
@@ -196,15 +198,16 @@ with PdfPages("/home/ryan/SABer_local/SI/QC_run/xPGs/genus_cluster_umap.pdf") as
 			figu = plt.figure()
 			sctr = sns.scatterplot(data=non_cat_df, x=0, y=1, hue='type', palette=['gray'],
 								   alpha=0.50, marker='.', linewidth=0.1, s=10,
-								   legend=False
+								   #legend=False
 								   )
 			sctr = sns.scatterplot(data=gen_cat_df, x=0, y=1, hue='genus', palette=[g_pal],
 								   alpha=0.50, linewidth=0.1, markers='o', s=10,
-								   legend=False, 
+								   #legend=False, 
 								   ).set_title(g_id)
-			#plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0)
+			plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0)
 			#plt.legend('', frameon=False)
-
+			png_file = "/home/ryan/SABer_local/SI/QC_run/xPGs/genus_cluster_umap_label_" + g_id + ".png"
+			figu.savefig(png_file, dpi=300, bbox_inches='tight')
 			pdf_pages.savefig(figu)
 			plt.clf()
 			plt.close()
@@ -252,6 +255,8 @@ cat_df['family'] = [sag2fam[s] if s in list(sag2fam.keys())
 cat_df['genus'] = [sag2gen[s] if s in list(sag2fam.keys())
 					else None for s in cat_df['Genome_Id']
 					]
+cat_df['genus'] = [sup_dict[x] if x in sup_dict.keys() else x for x in cat_df['genus']]
+
 '''
 sctr = sns.scatterplot(data=cat_df.query("type == 'not_recruited'"),
 					   x=0, y=1, hue='type', palette=['gray'],
@@ -269,8 +274,6 @@ sctr.figure.savefig("/home/ryan/SABer_local/SI/QC_run/xPGs/family_cluster_umap.p
 plt.clf()
 plt.close()
 '''
-family_cmap = ['blue', 'orange', 'green', 'red', 'purple', 'brown', 'pink']
-genus_cmap = ['blue', 'orange', 'green', 'red', 'purple', 'brown', 'pink']
 family_list = list(cat_df['family'].unique())
 genus_list = list(cat_df['genus'].unique())
 with PdfPages("/home/ryan/SABer_local/SI/QC_run/xPGs/family_cluster_umap_nolabel.pdf") as pdf_pages:
@@ -302,7 +305,7 @@ with PdfPages("/home/ryan/SABer_local/SI/QC_run/xPGs/family_cluster_umap_nolabel
 with PdfPages("/home/ryan/SABer_local/SI/QC_run/xPGs/genus_cluster_umap_nolabel.pdf") as pdf_pages:
 	for i,g_id in enumerate(genus_list):
 		if g_id != None:
-			print(f_id)
+			print(g_id)
 			g_pal = genus_cmap[i]
 			gen_cat_df = cat_df.query("genus == @g_id")
 			non_cat_df = cat_df.query("genus != @g_id | type == 'not_recruited'")
@@ -312,16 +315,18 @@ with PdfPages("/home/ryan/SABer_local/SI/QC_run/xPGs/genus_cluster_umap_nolabel.
 			figu = plt.figure()
 			sctr = sns.scatterplot(data=non_cat_df, x=0, y=1, hue='type', palette=['gray'],
 								   alpha=0.50, marker='.', linewidth=0.1, s=10,
-								   legend=False
+								   #legend=False
 								   )
 			sctr = sns.scatterplot(data=gen_cat_df, x=0, y=1, hue='genus', palette=[g_pal],
 								   alpha=0.50, linewidth=0.1, markers='o', s=10,
-								   legend=False, 
+								   #legend=False, 
 								   ).set_title(g_id)
-			#plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0)
+			plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0)
 			#plt.legend('', frameon=False)
 
 			pdf_pages.savefig(figu)
+			png_file = "/home/ryan/SABer_local/SI/QC_run/xPGs/genus_cluster_umap_nolabel_" + g_id + ".png"
+			figu.savefig(png_file, dpi=300, bbox_inches='tight')
 			plt.clf()
 			plt.close()
 

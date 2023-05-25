@@ -158,7 +158,7 @@ rule subset_genomes:
 	shell:
 		"""
 		mkdir -p {subset_genome_dir}
-		for g in $(grep -v Bin {input.qscore_table} | cut -f2); do cp {filtered_genome_dir}/$g.fasta {subset_genome_dir}/$g.fasta; done;
+		for g in $(tail -n +2 {input.qscore_table} | cut -f2); do cp {filtered_genome_dir}/$g.fasta {subset_genome_dir}/$g.fasta; done;
 		echo "Done."  > {output.out_log}
 		"""
 
