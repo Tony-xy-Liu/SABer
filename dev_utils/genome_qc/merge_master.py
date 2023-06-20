@@ -22,23 +22,23 @@ second_file_path = os.path.join(parent_dir, "dedupe", file_2)
 third_file_path = os.path.join(parent_dir, "trnascan", file_3)
 
 #read the file into a pandas dataframe
-data=pd.read_csv(first_file_path,sep='\t')
+bar_df = pd.read_csv(first_file_path,sep='\t')
 
 #create a new dataframe with the ID as index
-new_data = data.pivot(index='genome_id', columns='name', values='subunit_count').reset_index().fillna(0)
+bar_piv_df = bar_df.pivot(index='genome_id', columns='name', values='subunit_count').reset_index().fillna(0)
 
 #Read the dedupe_dataframe 
-data=pd.read_csv(second_file_path,sep='\t')
+dedupe_df = pd.read_csv(second_file_path,sep='\t')
 
 #Merge the two dataframes
-merged = pd.merge(data, new_data, left_on='Bin Id', right_on='genome_id').drop('genome_id', axis=1)
-
+merged_df = pd.merge(dedupe_df, bar_piv_df, left_on='Bin Id', right_on='genome_id', how='left').drop('genome_id', axis=1)
+merged_df.fillna(0, inplace=True)
 #read the file into a pandas dataframe
-data=pd.read_csv(third_file_path,sep='\t')
-merged_data = pd.merge(merged, data, left_on='Bin Id', right_on='genome_id').drop('genome_id', axis=1)
+trna_df = pd.read_csv(third_file_path,sep='\t')
+merge2_df = pd.merge(merged_df, trna_df, left_on='Bin Id', right_on='genome_id', how='left').drop('genome_id', axis=1)
 
 #Create the final master table
-master = master.append(merged_data)
+master = master.append(merge2_df)
         
 master[['Domain', 'Phylum', 'Class', 'Order', 'Family', 'Genus', 'Species']] = master['classification'].str.split(';', expand=True)
 
@@ -55,11 +55,17 @@ final = master.drop('classification', axis=1)
 
 #Save the master table
 final.to_csv(out_path, index=False)
-            
+
+final['contains_16S'] = [False if x == 0 else True for x in final['16S_rRNA']]
+
 #Contamination and Completion plots
 pio.templates.default = "plotly_dark"
 fig = px.scatter(final, x="Completeness", y="Contamination", color="Class",
-size='16S_rRNA', hover_data=['Phylum'], title="Contamination v/s Completion plot", color_discrete_sequence=px.colors.qualitative.Pastel)
+				 symbol='contains_16S', hover_data=['Phylum'],
+				 title="Contamination v/s Completion plot",
+				 color_discrete_sequence=px.colors.qualitative.Pastel
+				 )
+fig.update_traces(marker={'size': 20})
 fig.update_yaxes(autorange="reversed")
 fig.write_html(os.path.join(parent_dir, "CC_plot.html"))
 
