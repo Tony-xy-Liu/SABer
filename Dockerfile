@@ -21,13 +21,17 @@ Workdir /opt
 
 ENV PYTHONPATH=/opt/:/opt/libs
 ENV CONDA_ENV saber_cenv
+ENV ENV_FILE environment_relaxed.yml
+# ENV ENV_FILE environment.yml
 
-ARG git_branch=master
+# haven't figured out local build yet
+ENV git_branch master
+# ARG git_branch=master
 
 ## Set up Conda:
-COPY environment.yml /opt/environment.yml
+COPY $ENV_FILE /opt/$ENV_FILE
 #RUN conda update -n base -c defaults conda
-RUN conda env create -f /opt/environment.yml
+RUN conda env create -f /opt/$ENV_FILE
 # this bypasses conda shenanigans by just making the env available globally
 ENV PATH=/opt/conda/envs/for_container/bin:$PATH
 # Install SABer and Dependencies:
@@ -42,12 +46,12 @@ COPY --from=build-env /tini /tini
 # this bypasses conda shenanigans by just making the env available globally
 ENV PATH=/opt/conda/envs/for_container/bin:$PATH
 
-### Install apt dependencies
-RUN DEBIAN_FRONTEND=noninteractive apt-get update \
-                    && apt-get install --no-install-recommends -y \
-                       wget libgmp3-dev \
-                    && apt-get clean \
-                    && rm -rf /var/lib/apt/lists/*
+# ### Install apt dependencies
+# RUN DEBIAN_FRONTEND=noninteractive apt-get update \
+#                     && apt-get install --no-install-recommends -y \
+#                        wget libgmp3-dev \
+#                     && apt-get clean \
+#                     && rm -rf /var/lib/apt/lists/*
 
 ## We do some umask munging to avoid having to use chmod later on,
 ## as it is painfully slow on large directores in Docker.
