@@ -1,5 +1,9 @@
-FROM continuumio/miniconda3:4.12.0
-
+FROM continuumio/miniconda3:4.12.0 as build-env
+# Singularity builds from docker use tini, but raises warnings
+# we set it up here correctly for singularity
+ENV TINI_VERSION v0.19.0
+ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /tini
+RUN chmod +x /tini
 
 ### EXAMPLES ###
 
@@ -16,29 +20,34 @@ Workdir /opt
 ### Definitions:
 
 ENV PYTHONPATH=/opt/:/opt/libs
+ENV CONDA_ENV saber_cenv
 
 ARG git_branch=master
-
-### Install apt dependencies
-RUN DEBIAN_FRONTEND=noninteractive apt-get update \
-                    && apt-get install --no-install-recommends -y \
-                       python3 python3-pip wget libgmp3-dev \
-                    && apt-get clean \
-                    && rm -rf /var/lib/apt/lists/*
 
 ## Set up Conda:
 COPY environment.yml /opt/environment.yml
 #RUN conda update -n base -c defaults conda
 RUN conda env create -f /opt/environment.yml
-# Make RUN commands use the new environment:
-SHELL ["conda", "run", "-n", "saber_cenv", "/bin/bash", "-c"]
+# this bypasses conda shenanigans by just making the env available globally
+ENV PATH=/opt/conda/envs/for_container/bin:$PATH
 # Install SABer and Dependencies:
 RUN pip3 install git+https://github.com/hallamlab/SABer.git@${git_branch}#egg=SABerML
 
-# Set SABer conda env to default on startup
-RUN echo "source activate saber_cenv" > ~/.bashrc
-ENV PATH /opt/conda/envs/saber_cenv/bin:$PATH
+# move to clean execution environment to reduce image size
+# jammy is 22.04 long term support
+FROM ubuntu:jammy
+ENV CONDA_ENV saber_cenv
+COPY --from=build-env /opt/conda/envs/$CONDA_ENV /opt/conda/envs/$CONDA_ENV
+COPY --from=build-env /tini /tini
+# this bypasses conda shenanigans by just making the env available globally
+ENV PATH=/opt/conda/envs/for_container/bin:$PATH
 
+### Install apt dependencies
+RUN DEBIAN_FRONTEND=noninteractive apt-get update \
+                    && apt-get install --no-install-recommends -y \
+                       wget libgmp3-dev \
+                    && apt-get clean \
+                    && rm -rf /var/lib/apt/lists/*
 
 ## We do some umask munging to avoid having to use chmod later on,
 ## as it is painfully slow on large directores in Docker.
@@ -49,3 +58,5 @@ RUN old_umask=`umask` && \
 ## Make things work for Singularity by relaxing the permissions:
 #RUN chmod -R 755 /opt
 
+# singularity doesn't use the -s flag for tini, and that causes warnings
+ENTRYPOINT ["/tini", "-s", "--"]
