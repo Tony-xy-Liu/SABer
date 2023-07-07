@@ -6,7 +6,8 @@ SABer command line.
 import argparse
 import logging
 import sys
-
+import warnings
+warnings.filterwarnings('ignore')
 from saber.commands import (info, recruit)
 
 usage = """
