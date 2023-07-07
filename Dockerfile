@@ -23,7 +23,7 @@ ENV ENV_FILE environment.yml
 ### Install apt dependencies
 RUN DEBIAN_FRONTEND=noninteractive apt-get update
 RUN apt-get install --no-install-recommends -y \
-    python3-dev gcc libc-dev libffi-dev libgmp3-dev \
+    python3-dev gcc libc-dev libffi-dev libgmp3-dev gcc \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
