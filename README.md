@@ -9,7 +9,8 @@ Check out the [wiki](https://github.com/hallamlab/SABer/wiki) for tutorials and 
 ### Install SABer and Dependencies
 Currently the easiest way to install SABer is to use a conda virtual environment.  
 This will require the installation of conda. It can be [Anaconda](https://www.anaconda.com/download), [MambaForge](https://mamba.readthedocs.io/en/latest/installation.html), or [Miniconda](https://docs.conda.io/en/latest/miniconda.html).\
-Note that SABer is written in Python 3, so the conda has to support Python 3.
+Note: that SABer is written in Python 3, so the conda has to support Python 3.\
+Warning!! SABer has been developed and tested on Linux, use OSX and Windows at your own risk!!
 
 Once one of the "conda"s is installed, you can follow the directions below to install all dependencies and SABer within a conda environment.
 ```sh
