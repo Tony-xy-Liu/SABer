@@ -85,8 +85,6 @@ def recruit(sys_args):
     for m in mode_list:  # TODO: this needs to break if more than one mode is selected
         if m:
             recruit_s.mode = m
-    # Build save dir structure and start logging file
-    save_dirs_dict = s_utils.check_out_dirs(recruit_s.save_path, recruit_s.a, recruit_s.mode)
     s_log.prep_logging(os.path.join(recruit_s.save_path, "SABer_log.txt"), verbosity=args.verbose)
 
     # TODO: should check for prebuilt files before anything else to avoid rebuilding things
@@ -130,15 +128,21 @@ def recruit(sys_args):
                                          mg_sub_file
                                          )
     # Run HDBSCAN Cluster and Trusted Cluster Cleaning
-    recruit_s.params_dict = s_utils.set_clust_params(recruit_s.denovo_min_clust, recruit_s.denovo_min_samp,
-                                                     recruit_s.anchor_min_clust, recruit_s.anchor_min_samp,
-                                                     recruit_s.nu, recruit_s.gamma, recruit_s.vr, recruit_s.r,
-                                                     recruit_s.s, recruit_s.vs, recruit_s.a, abund_raw_file,
-                                                     recruit_s.save_path
-                                                     )
+    recruit_s.mode, recruit_s.set, recruit_s.params_dict = s_utils.set_clust_params(recruit_s.denovo_min_clust,
+                                                                                  recruit_s.denovo_min_samp,
+                                                                                  recruit_s.anchor_min_clust,
+                                                                                  recruit_s.anchor_min_samp,
+                                                                                  recruit_s.nu, recruit_s.gamma,
+                                                                                  recruit_s.vr, recruit_s.r,
+                                                                                  recruit_s.s, recruit_s.vs,
+                                                                                  recruit_s.a, abund_raw_file,
+                                                                                  recruit_s.save_path
+                                                                                  )
 
+    # Build save dir structure and start logging file
+    save_dirs_dict = s_utils.check_out_dirs(recruit_s.save_path, recruit_s.mode, recruit_s.set)
     mg_id = mg_sub_file[0]
-    clusters = clst.runClusterer(mg_id, save_dirs_dict[recruit_s.mode], save_dirs_dict[recruit_s.mode],
+    clusters = clst.runClusterer(mg_id, save_dirs_dict[recruit_s.set], save_dirs_dict[recruit_s.set],
                                  abund_scale_file, tetra_file,
                                  minhash_df_dict,
                                  recruit_s.params_dict['d_min_clust'],
@@ -151,7 +155,7 @@ def recruit(sys_args):
                                  )
     # Collect and join all recruits
     com.run_combine_recruits(save_dirs_dict, recruit_s.mg_file,
-                             clusters, trust_files, recruit_s.mode,
+                             clusters, trust_files, recruit_s.set,
                              recruit_s.nthreads
                              )
 
