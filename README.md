@@ -38,18 +38,24 @@ The result of the above commands is a new directory named `SABer_out` that conta
 If you would like to use a [Docker](https://docs.docker.com/engine/install/) or [Singularity](https://docs.sylabs.io/guides/3.0/user-guide/installation.html) container of SABer they are available.\
 In either case, they can be pulled from [Quay.IO](https://quay.io/repository/hallamlab/saber) with one of the following commands:
 ```sh
-# For Docker
-docker pull quay.io/hallamlab/saber
-#For Singularity
-singularity pull quay.io/hallamlab/saber
-```
-They can also be build from scratch using the following commands:
+# For Docker (need sudo access)
+sudo docker pull quay.io/hallamlab/saber
+# Run above demo with Docker
+sudo docker run -it --network=host --rm -v ./:/cwd quay.io/hallamlab/saber:latest saber recruit -m cwd/k12.gold_assembly.fasta -l cwd/docker_read_list.txt -o cwd/SABer_out -s cwd/SAG
 
-Docker:
+#For Singularity
+singularity pull docker://quay.io/hallamlab/saber
+# Run the above demo with Singularity
+singularity exec saber_latest.sif saber recruit -m k12.gold_assembly.fasta -l read_list.txt -o SABer_out -s SAG
+```
+Note: Make sure you are in the `demo` directory when running the above commands as the examples assume this.
+
+They can also be build from scratch using the following commands:\
+Docker (need sudo access):
 ```sh
 make docker-build
 ```
-Singularity:
+Singularity (assumes you built the Docker locally first):
 ```sh
 make singularity-local-build
 ``` 
