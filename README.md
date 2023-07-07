@@ -8,8 +8,10 @@ Check out the [wiki](https://github.com/hallamlab/SABer/wiki) for tutorials and 
 
 ### Install SABer and Dependencies
 Currently the easiest way to install SABer is to use a conda virtual environment.  
-This will require the installation of [Anaconda](https://www.anaconda.com/download).  
-Once Anaconda is installed, you can follow the directions below to install all dependencies and SABer within a conda environment.
+This will require the installation of conda. It can be [Anaconda](https://www.anaconda.com/download), [MambaForge](https://mamba.readthedocs.io/en/latest/installation.html), or [Miniconda](https://docs.conda.io/en/latest/miniconda.html).\
+Note that SABer is written in Python 3, so the conda has to support Python 3.
+
+Once one of the "conda"s is installed, you can follow the directions below to install all dependencies and SABer within a conda environment.
 ```sh
 git clone https://github.com/hallamlab/SABer.git
 cd SABer
@@ -32,12 +34,14 @@ saber recruit -m k12.gold_assembly.fasta -l read_list.txt -o SABer_out -s SAG
 The result of the above commands is a new directory named `SABer_out` that contains all the intermediate and final outputs for the SABer analysis. 
 
 ### Docker and Singularity containers
-If you would like to use a docker or singularity container of SABer they are available:
-
-[Docker](not_available_yet) (Not availavble yet...)
-
-[Singularity](not_available_yet) (Not availavble yet...)
-
+If you would like to use a [Docker](https://docs.docker.com/engine/install/) or [Singularity](https://docs.sylabs.io/guides/3.0/user-guide/installation.html) container of SABer they are available.\
+In either case, they can be pulled from [Quay.IO](https://quay.io/repository/hallamlab/saber) with one of the following commands:
+```sh
+# For Docker
+docker pull quay.io/hallamlab/saber
+#For Singularity
+singularity pull quay.io/hallamlab/saber
+```
 They can also be build from scratch using the following commands:
 
 Docker:
