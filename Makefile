@@ -54,7 +54,7 @@ docker-run:
 		|| git_branch=$$(git describe --tags)
 	sudo docker run -it --network=host --rm \
 		-v $(CURDIR):/input \
-		-v $(CURDIR)/out:/output
+		-v $(CURDIR)/out:/output \
 		quay.io/hallamlab/saber:$$git_branch bash 
 
 singularity-local-build:
