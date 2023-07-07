@@ -8,7 +8,7 @@ Check out the [wiki](https://github.com/hallamlab/SABer/wiki) for tutorials and 
 
 ### Install SABer and Dependencies
 Currently the easiest way to install SABer is to use a conda virtual environment.  
-This will require the installation of [Anaconda](https://www.anaconda.com/distribution/).  
+This will require the installation of [Anaconda](https://www.anaconda.com/download).  
 Once Anaconda is installed, you can follow the directions below to install all dependencies and SABer within a conda environment.
 ```sh
 git clone https://github.com/hallamlab/SABer.git
