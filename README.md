@@ -8,8 +8,11 @@ Check out the [wiki](https://github.com/hallamlab/SABer/wiki) for tutorials and 
 
 ### Install SABer and Dependencies
 Currently the easiest way to install SABer is to use a conda virtual environment.  
-This will require the installation of [Anaconda](https://www.anaconda.com/distribution/).  
-Once Anaconda is installed, you can follow the directions below to install all dependencies and SABer within a conda environment.
+This will require the installation of conda. It can be [Anaconda](https://www.anaconda.com/download), [MambaForge](https://mamba.readthedocs.io/en/latest/installation.html), or [Miniconda](https://docs.conda.io/en/latest/miniconda.html).\
+Note: that SABer is written in Python 3, so the conda has to support Python 3.\
+**Warning!!** SABer has been developed and tested on Linux, use OSX and Windows at your own risk!!
+
+Once one of the "conda"s is installed, you can follow the directions below to install all dependencies and SABer within a conda environment.
 ```sh
 git clone https://github.com/hallamlab/SABer.git
 cd SABer
@@ -32,19 +35,27 @@ saber recruit -m k12.gold_assembly.fasta -l read_list.txt -o SABer_out -s SAG
 The result of the above commands is a new directory named `SABer_out` that contains all the intermediate and final outputs for the SABer analysis. 
 
 ### Docker and Singularity containers
-If you would like to use a docker or singularity container of SABer they are available:
+If you would like to use a [Docker](https://docs.docker.com/engine/install/) or [Singularity](https://docs.sylabs.io/guides/3.0/user-guide/installation.html) container of SABer they are available.\
+In either case, they can be pulled from [Quay.IO](https://quay.io/repository/hallamlab/saber) with one of the following commands:
+```sh
+# For Docker (need sudo access)
+sudo docker pull quay.io/hallamlab/saber
+# Run above demo with Docker
+sudo docker run -it --network=host --rm -v ./:/cwd quay.io/hallamlab/saber:latest saber recruit -m cwd/k12.gold_assembly.fasta -l cwd/docker_read_list.txt -o cwd/SABer_out -s cwd/SAG
 
-[Docker](not_available_yet) (Not availavble yet...)
+#For Singularity
+singularity pull docker://quay.io/hallamlab/saber
+# Run the above demo with Singularity
+singularity exec saber_latest.sif saber recruit -m k12.gold_assembly.fasta -l read_list.txt -o SABer_out -s SAG
+```
+Note: Make sure you are in the `demo` directory when running the above commands as the examples assume this.
 
-[Singularity](not_available_yet) (Not availavble yet...)
-
-They can also be build from scratch using the following commands:
-
-Docker:
+They can also be build from scratch using the following commands:\
+Docker (need sudo access):
 ```sh
 make docker-build
 ```
-Singularity:
+Singularity (assumes you built the Docker locally first):
 ```sh
 make singularity-local-build
 ``` 
