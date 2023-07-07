@@ -129,10 +129,10 @@ def check_out_dirs(save_path, autoopt, mode):
 
     if not os.path.exists(save_path):
         os.makedirs(save_path)
-    if autoopt == 'algo_defaults':
-        mode_path = autoopt
-    else:
-        mode_path = os.path.join(autoopt, mode)
+    #if autoopt == 'algo_defaults':
+    #    mode_path = autoopt
+    #else:
+    mode_path = os.path.join(autoopt, mode)
     denovo_path = os.path.join(mode_path, 'denovo')
     hdbscan_path = os.path.join(mode_path, 'hdbscan')
     ocsvm_path = os.path.join(mode_path, 'ocsvm')
@@ -394,9 +394,8 @@ def set_clust_params(denovo_min_clust, denovo_min_samp, anchor_min_clust,
                      ):
     logging.info('Running AutoOpt to find optimal hyperparameters\n')
     clust_match_df = calc_entropy(working_dir, [abund_file])
-    autoopt_params = run_param_match(working_dir, a, vr, r, s, vs)  # TODO: draw from dev_utils/param_matching.py
-
-    logging.info('AutoOpt method: ' + str(a) + '\n')
+    autoopt_method, autoopt_setting, autoopt_params = run_param_match(working_dir, a, vr, r, s, vs)  # TODO: draw from dev_utils/param_matching.py
+    logging.info('AutoOpt method: ' + str(autoopt_method) + '\n')
     logging.info('Parameter set: ' + autoopt_params['setting'] + '\n')
     logging.info('\tDe Novo min_cluster_size: ' + str(autoopt_params['d_min_clust']) + '\n')
     logging.info('\tDe Novo min_samples: ' + str(autoopt_params['d_min_samp']) + '\n')
@@ -405,7 +404,7 @@ def set_clust_params(denovo_min_clust, denovo_min_samp, anchor_min_clust,
     logging.info('\tAnchored nu: ' + str(autoopt_params['nu']) + '\n')
     logging.info('\tAnchored gamma: ' + str(autoopt_params['gamma']) + '\n')
 
-    return autoopt_params
+    return autoopt_method, autoopt_setting, autoopt_params
 
 
 def entropy_cluster(ent_df):
@@ -848,11 +847,18 @@ def run_param_match(real_dir, autoopt_setting, vr, r, s, vs):
                       'best_match': best_match_df,
                       'algo_defaults': None
                       }
-    if autoopt_setting != 'algo_defaults':
+    if ((autoopt_setting != 'algo_defaults') & 
+          (vr == None and r == None and s == None and vs == None)
+          ):
         opt_df = opt_param_dict[autoopt_setting]
-    else: # if a mode is selected but no param optimization, use majority_rule
-        opt_df = opt_param_dict['majority_rule']
-
+        vs = 'very_strict'
+    elif autoopt_setting != 'algo_defaults':
+        opt_df = opt_param_dict[autoopt_setting]
+    elif ((autoopt_setting == 'algo_defaults') & 
+          (vr != None or r != None or s != None or vs != None)
+          ):
+        autoopt_setting = 'majority_rule'
+        opt_df = opt_param_dict[autoopt_setting]
     if vr:  # TODO: this can be refactored, and should be at some point
         d_hdb_df = opt_df.query("cv_algo == 'hdbscan' & algo == 'denovo'"
                                 "& mq_nc == 'mq' & level == 'strain'"
@@ -923,4 +929,4 @@ def run_param_match(real_dir, autoopt_setting, vr, r, s, vs):
                        'nu': opt_nu, 'gamma': opt_gamma, 'setting': setting
                        }
     
-    return params_dict
+    return autoopt_setting, setting, params_dict
