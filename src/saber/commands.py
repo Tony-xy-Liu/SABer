@@ -27,7 +27,7 @@ def info(sys_args):
     :param sys_args: List of arguments parsed from the command-line.
     :return: None
     """
-    parser = s_args.SABerArgumentParser(description="Return package and executable information.")
+    parser = s_args.SABerArgumentParser(prog='saber', description="Return package and executable information.")
     args = parser.parse_args(sys_args)
     s_log.prep_logging()
     info_s = s_class.SABerBase("info")
@@ -57,7 +57,7 @@ def recruit(sys_args):
     :param sys_args: List of arguments parsed from the command-line.
     :return: None
     """
-    parser = s_args.SABerArgumentParser(description="Recruit environmental reads to reference contigs.")
+    parser = s_args.SABerArgumentParser(prog='saber', description="Recruit environmental reads to reference contigs.")
     parser.add_recruit_args()
     args = parser.parse_args(sys_args)
 

@@ -24,9 +24,11 @@ Use '-h' to get subcommand-specific help, e.g.
 def main():
     commands = {"recruit": recruit,
                 "info": info}
-    parser = argparse.ArgumentParser(description='Recruit environmental reads to reference SAG(s).',
-                                     add_help=False
-                                     )
+    parser = argparse.ArgumentParser(
+        prog='saber',
+        description='Recruit environmental reads to reference SAG(s).',
+        add_help=False
+    )
     parser.add_argument('command', nargs='?')
     input_cmd = sys.argv[1:2]
     if input_cmd == ['-h']:
