@@ -5,39 +5,28 @@ channels:
   - ursky
   - defaults
 dependencies:
-  - bbmap=38.18=0
-  - cython=0.29.32
-  - hdbscan=0.8.27
-  - hdmedians=0.14.2
-  - htslib=1.9
-  - ipython=7.33.0
-  - metabat2=2.15
-  - minimap2=2.17
-  - numba=0.56.3
-  - numpy=1.21.6
-  - python=3.7.12
-  - python-dateutil=2.8.2
-  - python_abi=3.7
-  - samtools=1.6
-  - scikit-bio=0.5.6
-  - scikit-learn=1.0.2
-  - screed=1.1.1
+  - bbmap=39.01
+  - cython
+  - hdbscan=0.8.30
+  - metabat2=2.12.1
+  - minimap2=2.26
+  - numba=0.57.1
+  - pandas=2.0.3
+  - perl=5.32.1
+  - python=3.11.4
+  - samtools=1.17
+  - scikit-bio=0.5.8
+  - scikit-learn=1.3.0
+  - scipy=1.11.1
+  - screed=1.1.2
   - seqkit=2.4.0
-  - setuptools=67.1.0
-  - six=1.16.0
-  - sourmash=4.2.2
-  - sourmash-minimal=4.2.2
-  - sqlite=3.37.0
-  - umap-learn=0.5.2
-  - wheel=0.38.4
-  - zlib=1.2.13
-  - pip=21.2.2
+  - sourmash=4.8.2
+  - tqdm=4.65.0
+  - umap-learn=0.5.3
+  - zlib
+  - pip
   - pip:
-    - dit==1.2.3
-    - joblib==1.0.0
-    - pandas==1.3.4
-    - prettytable==3.6.0
-    - pyfastx==0.8.4
-    - scipy==1.7.2
-    - tqdm==4.62.3
+    - dit==1.5
+    - joblib==1.3.1
+    - pyfastx==1.1.0
 prefix: /home/ryan/mambaforge/envs/saber_cenv
